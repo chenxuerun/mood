@@ -7,8 +7,8 @@ from .function import init_parameter
 from example_algos.nnunet.network_architecture.generic_UNet import ConvDropoutNormNonlin
 
 TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_train'
-TEST_DATASET_DIR = '/home/cxr/Program_Datas/mood/validate_c'
-LOAD_MODEL_NAME = 'zunet_mask'
+TEST_DATASET_DIR = '/home/cxr/Program_Datas/mood/validate'
+LOAD_MODEL_NAME = 'zunet_predict'
 
 
 # keywords

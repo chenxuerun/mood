@@ -121,7 +121,7 @@ def eval_list(pred_file_list, label_file_list, mode="pixel"):
 
     label_vals = np.concatenate(label_vals, axis=0)
     pred_vals = np.concatenate(pred_vals, axis=0)
-
+    # pred_vals = np.zeros_like(label_vals)
     return metrics.average_precision_score(label_vals, pred_vals)
 
 

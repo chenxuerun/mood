@@ -222,7 +222,7 @@ class FuncFactory:
                         rec_tensor[[i + see_slice]] = out[0].cpu()
                         loss_tensor[[i + see_slice]] = loss[0].cpu()
                 return loss_tensor, rec_tensor
-        if recipe == 'rotate':
+        elif recipe == 'rotate':
             def get_pixel_score(model, data_tensor):
                 rec_tensor = torch.zeros_like(data_tensor)                                                                                                 # (l, f, f)
                 loss_tensor = torch.zeros_like(data_tensor)
