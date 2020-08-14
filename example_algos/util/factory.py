@@ -22,7 +22,9 @@ class AlgoFactory:
             basic_kws = BASIC_KWS
 
         if run_mode in ['validate', 'statistics']:
-            return Algorithm(basic_kws=basic_kws, train_kws={})
+            algo = Algorithm(basic_kws=basic_kws, train_kws={'model_type': model_type})
+            algo.__dict__['run'] = self.FF.getFunction('run', run_mode)
+            return algo
 
         if not basic_kws['load']:
             from .configure import TRAIN_KWS, OTHER_KWS
@@ -35,7 +37,7 @@ class AlgoFactory:
             train_kws['recipe'] = recipe
             train_kws['model_type'] = model_type
             need_to_save_config = True
-            
+
         else:
             train_kws = AlgoFactory.load_config(os.path.join(basic_kws['load_path'], '../config/train_kws.json'))            # 读取训练配置
             model_type = train_kws['model_type']
