@@ -46,9 +46,11 @@ def get_square_mask(data_shape, square_size, n_squares, noise_val=(0, 0), channe
 
         img = np.zeros(img_shape)
 
-        if square_pos is None or len(square_pos) == 0:
+        if square_pos is None:
             h_start = np.random.randint(0, img_h - square_size)
             w_start = np.random.randint(0, img_w - square_size)
+        elif len(square_pos) == 0:
+            return img
         else:
             pos_wh = square_pos[np.random.randint(0, len(square_pos))]
             h_start = max(pos_wh[0] - square_size // 2, 0)

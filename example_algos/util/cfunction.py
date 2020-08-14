@@ -208,6 +208,7 @@ class FuncFactory:
     # data_tensor 是整个文件的数据
     def create_get_pixel_score_fn(self, train_kws):
         recipe = train_kws['recipe']
+
         if recipe == 'predict':
             see_slice = train_kws['see_slice']
             def get_pixel_score(model, data_tensor):
@@ -219,29 +220,37 @@ class FuncFactory:
                         out = model(input)                                                                                                                                          # (1, 1, f, f)
                         label = data_tensor[[i + see_slice], :, :].unsqueeze(0).to(DEVICE)
                         loss = torch.pow(out - label, 2)
+
                         rec_tensor[[i + see_slice]] = out[0].cpu()
                         loss_tensor[[i + see_slice]] = loss[0].cpu()
                 return loss_tensor, rec_tensor
+
         elif recipe == 'rotate':
+            from math import ceil
+            batch_size = train_kws['batch_size']
             def get_pixel_score(model, data_tensor):
                 rec_tensor = torch.zeros_like(data_tensor)                                                                                                 # (l, f, f)
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
-                    for i in range(data_tensor.shape[0]):
-                        label = data_tensor[i: i+1].unsqueeze(1).to(DEVICE)     # (1, 1, f, f)
-                        input = torch.rot90((label), 1, [2, 3])
+                    for i in range(ceil(data_tensor.shape[0] / batch_size)):
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)     # (1, 1, f, f)
+                        input = torch.rot90(label, 1, [2, 3])
                         rec = model(input)
-                        rec_tensor[i: i+1] = rec[:, 0, :, :].cpu()          # (1, f, f)
-                        loss = torch.pow(label - rec, 2)[:, 0, :, :]
-                        loss_tensor[i: i+1] = loss.cpu()
+                        loss = torch.pow(label - rec, 2)
+
+                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :].cpu()                                    # (1, f, f)
+                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :].cpu()
                 return loss_tensor, rec_tensor
+
         elif recipe == 'split_rotate':
+            from math import ceil
+            batch_size = train_kws['batch_size']
             def get_pixel_score(model, data_tensor):
                 rec_tensor = torch.zeros_like(data_tensor)                                                                                                 # (l, f, f)
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
-                    for i in range(data_tensor.shape[0]):
-                        label = data_tensor[i:i+1].unsqueeze(1).to(DEVICE)
+                    for i in range(ceil(data_tensor.shape[0] / batch_size)):
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
                         a, b = label.chunk(2, 2)
                         a1, a2 = a.chunk(2, 3)
                         b1, b2 = b.chunk(2, 3)
@@ -254,22 +263,27 @@ class FuncFactory:
                         a_out = torch.cat((out[0], out[1]), 3)
                         b_out = torch.cat((out[2], out[3]), 3)
                         rec = torch.cat((a_out, b_out), 2)
-
-                        rec_tensor[i: i+1] = rec[:, 0, :, :].cpu()
-                        loss = torch.pow(label - rec, 2)[:, 0, :]
-                        loss_tensor[i: i+1] = loss.cpu()
+                        loss = torch.pow(label - rec, 2)
+                        
+                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :].cpu()
+                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :].cpu()
                 return loss_tensor, rec_tensor
+
         else:
+            from math import ceil
+            batch_size = train_kws['batch_size']
             def get_pixel_score(model, data_tensor):
                 rec_tensor = torch.zeros_like(data_tensor)                               # (l, f, f)
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
-                    for i in range(data_tensor.shape[0]):
-                        input = data_tensor[i: i+1].unsqueeze(1).to(DEVICE)     # (1, 1, f, f)
+                    for i in range(ceil(data_tensor.shape[0] / batch_size)):
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)     # (1, 1, f, f)
+                        input = label
                         rec = model(input)
-                        rec_tensor[i: i+1] = rec[:, 0, :, :].cpu()          # (1, f, f)
-                        loss = torch.pow(input - rec, 2)[:, 0, :, :]
-                        loss_tensor[i: i+1] = loss.cpu()
+                        loss = torch.pow(input - rec, 2)
+
+                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :].cpu()
+                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :].cpu()
                 return loss_tensor, rec_tensor
 
         return get_pixel_score
@@ -284,30 +298,36 @@ class FuncFactory:
             def get_sample_score(model, data_tensor):
                 slice_scores = []
                 with torch.no_grad():
-                    for i in range(data_tensor.shape[0] - see_slice):
+                    for i in range(data_tensor.shape[0]):
                         input = data_tensor[i: i+see_slice].unsqueeze(0).to(DEVICE)
                         out = model(input)
                         label = data_tensor[[i+see_slice]].unsqueeze(0).to(DEVICE)
                         loss = torch.mean(torch.pow(out - label, 2), dim=(1, 2, 3))
                         slice_scores.append(loss.item())
                 return np.max(slice_scores)
-        if recipe == 'rotate':
+
+        elif recipe == 'rotate':
+            from math import ceil
+            batch_size = train_kws['batch_size']
             def get_sample_score(model, data_tensor):
                 slice_scores = []
                 with torch.no_grad():
-                    for i in range(data_tensor.shape[0]):
-                        label = data_tensor[i: i+1].unsqueeze(1).to(DEVICE)
+                    for i in range(ceil(data_tensor.shape[0] / batch_size)):
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
                         input = torch.rot90(label, 1, [2, 3])
                         rec = model(input)
                         loss = torch.mean(torch.pow(label - rec, 2), dim=(1, 2, 3))
-                        slice_scores.append(loss.item())
+                        slice_scores += loss.cpu().tolist()
                 return np.max(slice_scores)
+
         elif recipe == 'split_rotate':
+            from math import ceil
+            batch_size = train_kws['batch_size']
             def get_sample_score(model, data_tensor):
                 slice_scores = []
                 with torch.no_grad():
-                    for i in range(data_tensor.shape[0]):
-                        label = data_tensor[i: i+1].unsqueeze(1).to(DEVICE)
+                    for i in range(ceil(data_tensor.shape[0] / batch_size)):
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
                         a, b = label.chunk(2, 2)
                         a1, a2 = a.chunk(2, 3)
                         b1, b2 = b.chunk(2, 3)
@@ -321,17 +341,21 @@ class FuncFactory:
                         b_out = torch.cat((out[2], out[3]), 3)
                         rec = torch.cat((a_out, b_out), 2)
                         loss = torch.mean(torch.pow(label - rec, 2), dim=(1, 2, 3))
-                        slice_scores.append(loss.item())
+
+                        slice_scores += loss.cpu().tolist()
                 return np.max(slice_scores)
+                
         else:
+            from math import ceil
+            batch_size = train_kws['batch_size']
             def get_sample_score(model, data_tensor):
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(data_tensor.shape[0]):
-                        input = data_tensor[i: i+1].unsqueeze(1).to(DEVICE)
+                        input = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
                         rec = model(input)
                         loss = torch.mean(torch.pow(input - rec, 2), dim=(1, 2, 3))
-                        slice_scores.append(loss.item())
+                        slice_scores += loss.cpu().tolist()
                 return np.max(slice_scores)
 
         return get_sample_score

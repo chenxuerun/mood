@@ -121,12 +121,14 @@ class Algorithm:
         test_dir_list = os.listdir(test_dir)
         length = len(test_dir_list)
         handle = tqdm(enumerate(test_dir_list))
+
+        self.model.eval()
         for i, f_name in handle:
             ni_file_path = os.path.join(test_dir, f_name)
             ni_data, ni_aff = ni_load(ni_file_path)
 
             # pixel
-            result = self.score_pixel_2d(ni_data, return_rec=False)
+            result = self.score_pixel_2d(ni_data, return_rec=True)
             save_images(pred_pixel_dir, f_name, ni_aff, score=result['score'], ori=result['ori'], rec=result['rec'])
 
             # sample
