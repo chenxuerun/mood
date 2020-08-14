@@ -298,7 +298,7 @@ class FuncFactory:
             def get_sample_score(model, data_tensor):
                 slice_scores = []
                 with torch.no_grad():
-                    for i in range(data_tensor.shape[0]):
+                    for i in range(data_tensor.shape[0] - see_slice):
                         input = data_tensor[i: i+see_slice].unsqueeze(0).to(DEVICE)
                         out = model(input)
                         label = data_tensor[[i+see_slice]].unsqueeze(0).to(DEVICE)
@@ -351,7 +351,7 @@ class FuncFactory:
             def get_sample_score(model, data_tensor):
                 slice_scores = []
                 with torch.no_grad():
-                    for i in range(data_tensor.shape[0]):
+                    for i in range(ceil(data_tensor.shape[0] / batch_size)):
                         input = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
                         rec = model(input)
                         loss = torch.mean(torch.pow(input - rec, 2), dim=(1, 2, 3))

@@ -9,6 +9,7 @@ import torch
 from trixi.util.pytorchexperimentstub import PytorchExperimentStub
 
 from example_algos.data.numpy_dataset import get_numpy2d_dataset
+from .constant import REC
 
 
 class Algorithm:
@@ -128,7 +129,7 @@ class Algorithm:
             ni_data, ni_aff = ni_load(ni_file_path)
 
             # pixel
-            result = self.score_pixel_2d(ni_data, return_rec=True)
+            result = self.score_pixel_2d(ni_data, return_rec=REC)
             save_images(pred_pixel_dir, f_name, ni_aff, score=result['score'], ori=result['ori'], rec=result['rec'])
 
             # sample
