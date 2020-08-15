@@ -76,13 +76,13 @@ class FuncFactory:
 
     def create_run_fn(self, run_mode):
         if run_mode == 'train':
-            def run(algo):  algo.train()
+            def run(algo, **kwargs):  algo.train(**kwargs)
         elif run_mode == 'predict':
-            def run(algo):  algo.predict()
+            def run(algo, **kwargs):  algo.predict(**kwargs)
         elif run_mode == 'validate':
-            def run(algo):  algo.validate()
+            def run(algo, **kwargs):  algo.validate(**kwargs)
         elif run_mode == 'statistics':
-            def run(algo):  algo.statistics()
+            def run(algo, **kwargs):  algo.statistics(**kwargs)
         else:
             raise Exception(f'未知run_mode：{run_mode}')
         return run

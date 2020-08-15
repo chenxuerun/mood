@@ -9,7 +9,6 @@ import torch
 from trixi.util.pytorchexperimentstub import PytorchExperimentStub
 
 from example_algos.data.numpy_dataset import get_numpy2d_dataset
-from .constant import REC
 
 
 class Algorithm:
@@ -110,7 +109,7 @@ class Algorithm:
         return loss
 
 
-    def predict(self):
+    def predict(self, **kwargs):
         print('predict')
         from .nifti_io import ni_save, ni_load
         from .function import save_images, init_validation_dir
@@ -123,13 +122,19 @@ class Algorithm:
         length = len(test_dir_list)
         handle = tqdm(enumerate(test_dir_list))
 
+        has_num = 'num' in kwargs.keys()
+        if has_num: num = kwargs['num']
+        return_rec = kwargs['return_rec'] if 'return_rec' in kwargs.keys() else False
+
         self.model.eval()
         for i, f_name in handle:
+            if has_num:
+                if i == num: break
             ni_file_path = os.path.join(test_dir, f_name)
             ni_data, ni_aff = ni_load(ni_file_path)
 
             # pixel
-            result = self.score_pixel_2d(ni_data, return_rec=REC)
+            result = self.score_pixel_2d(ni_data, return_rec=return_rec)
             save_images(pred_pixel_dir, f_name, ni_aff, score=result['score'], ori=result['ori'], rec=result['rec'])
 
             # sample
@@ -170,7 +175,8 @@ class Algorithm:
         if not os.path.exists(statistics_dir):
             os.mkdir(statistics_dir)
 
-        for file_name in tqdm(os.listdir(os.path.join(test_dir, 'data'))):
+        handle = tqdm(enumerate(os.listdir(os.path.join(predict_dir, 'pixel', 'rec'))))
+        for i, file_name in handle:
             prefix = file_name.split('.')[0]
             each_statistics_dir = os.path.join(statistics_dir, prefix)
             if not os.path.exists(each_statistics_dir): os.mkdir(each_statistics_dir)
@@ -185,8 +191,9 @@ class Algorithm:
 
             with open(os.path.join(test_dir, 'label', 'sample', file_name + '.txt'), "r") as f:
                 sample_label = f.readline()
-            
-            if sample_label == '1':
+            sample_label = int(sample_label)
+
+            if sample_label == 1:
                 # 异常区域打分直方图
                 label, _ = ni_load(os.path.join(test_dir, 'label', 'pixel', file_name))
                 abnormal_area_score = score[label == 1]
@@ -196,7 +203,7 @@ class Algorithm:
 
                 abnormal_number = len(abnormal_area_score)
                 print(f'abnormal_number: {abnormal_number}')
-            elif sample_label == '0':
+            elif sample_label == 0:
                 abnormal_number = 10000
             else: raise Exception(f'sample_label有问题: {sample_label}')
 

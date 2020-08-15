@@ -13,10 +13,16 @@ class AlgoFactory:
     def __init__(self):
         self.FF = FuncFactory()
 
-    def getAlgo(self, run_mode, model_type=None, recipe=None):
+    def getAlgo(self, run_mode, model_type=None, recipe=None, **kwargs):
         # 创建基本的algo
         # basic_kws永远是手动配置的，而其它两个只需要第一次手动配置，以后就会在路径中读取
-        basic_kws = None            # 读取基本配置
+
+        # 读取基本配置
+        if 'basic_kws' in kwargs.keys():
+            basic_kws = kwargs['basic_kws']
+        else:
+            basic_kws = None
+
         if basic_kws == None:
             from .configure import BASIC_KWS
             basic_kws = BASIC_KWS
