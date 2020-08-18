@@ -1,16 +1,19 @@
 import os
 import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+
 import random
 from math import ceil
+import time
 
 import torch
 import torch.nn as nn
 import numpy as np
-import time
 from tqdm import tqdm
 
-from .nifti_io import ni_save, ni_load
-from .constant import *
+from util.nifti_io import ni_save, ni_load
+from util.constant import *
 
 
 def init_parameter(module):
@@ -29,19 +32,23 @@ def transform_dict_data(origin_dict, map):
 
 
 def save_images(pred_dir, f_name, ni_aff, score=None, ori=None, rec=None):
+    ni_aff = ni_aff.astype(np.float64)
     if score is not None:
         score_dir = os.path.join(pred_dir, 'score')
         if not os.path.exists(score_dir): os.mkdir(score_dir)
+        score = score.astype(np.float64)
         ni_save(os.path.join(score_dir, f_name), score, ni_aff)
 
     if ori is not None:
         ori_dir = os.path.join(pred_dir, 'ori')
         if not os.path.exists(ori_dir): os.mkdir(ori_dir)
+        ori = ori.astype(np.float64)
         ni_save(os.path.join(ori_dir, f_name), ori, ni_aff)
 
     if rec is not None:
         rec_dir = os.path.join(pred_dir, 'rec')
         if not os.path.exists(rec_dir): os.mkdir(rec_dir)
+        rec = rec.astype(np.float64)
         ni_save(os.path.join(rec_dir, f_name), rec, ni_aff)
 
 
@@ -58,56 +65,119 @@ def clip_image(input_folder, output_folder):
                 ni_save(os.path.join(output_folder, folder_name, f_name), ni_data, ni_affine)
 
 
-# def train_model(model, opt, data, batch_idx):
-#     if RECIPE == 'predict':
-#         input = data[:, range(SEE_SLICE), :, :].to(DEVICE)
-#         label = data[:, [SEE_SLICE], :, :].to(DEVICE)
-#         net_out = model(input)
-#         loss = torch.mean(torch.pow(net_out - label, 2))
-    # elif RECIPE == 'mask':
-    #     label = data.to(DEVICE)
-    #     if random.random() < 0.8:
-    #         if FIXED_MASK_SQUARE_SIZE: square_size = SQUARE_SIZE
-    #         else: square_size = (0, data.shape[2] // 2)
-    #         ce_tensor = get_square_mask(data.shape, square_size=square_size, n_squares=1,
-    #             noise_val=(torch.min(data).item(), torch.max(data).item()))
-    #         ce_tensor = torch.from_numpy(ce_tensor).float()
-    #         inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, data)
-    #         input = inpt_noisy.to(DEVICE)
-    #     else:
-    #         input = label
-    #     net_out = model(input)
-    #     loss = torch.mean(torch.pow(net_out - label, 2))
-#     elif RECIPE == 'rotate':
-#         if BLOCK:
-#             label = data.to(DEVICE)
-#             inpt_rot = torch.rot90(data, 1, [2, 3])
-#             input = inpt_rot.to(DEVICE)
-#             net_out = model(input)
-#             loss = torch.mean(torch.pow(net_out - label, 2))
-#         else:
-#             a, b = data.chunk(2, 2)
-#             a1, a2 = a.chunk(2, 3)
-#             b1, b2 = b.chunk(2, 3)
-#             losses = []
-#             for inpt_split in list([a1, a2, b1, b2]):
-#                 inpt_rot = torch.rot90(inpt_split, 1, [2, 3])
-#                 inpt_rec = self.model(inpt_rot)
-#                 loss = torch.pow(inpt_split - inpt_rec, 2)
-#                 losses.append(loss)
-#             losses = torch.stack(losses)
-#             loss = torch.mean(losses)
-#     else:
-#         label = data.to(DEVICE)
-#         input = label
-#         net_out = model(input)
-#         loss = torch.mean(torch.pow(net_out - label, 2))
+def template_statistics(test_dir):
+    import matplotlib.pyplot as plt
 
-#     opt.zero_grad()
-#     loss.backward()
-#     opt.step()
+    predict_dir = os.path.join(test_dir, 'eval', 'temmat', 'predict')
+    assert os.path.exists(predict_dir), '先预测，再统计'
+    statistics_dir = os.path.join(predict_dir, 'statistics')
+    if not os.path.exists(statistics_dir):
+        os.mkdir(statistics_dir)
 
-#     return loss, input, net_out
+    handle = tqdm(enumerate(os.listdir(os.path.join(predict_dir, 'pixel', 'rec'))))
+    for i, file_name in handle:
+        prefix = file_name.split('.')[0]
+        each_statistics_dir = os.path.join(statistics_dir, prefix)
+        if not os.path.exists(each_statistics_dir): os.mkdir(each_statistics_dir)
+
+        score, ni_aff = ni_load(os.path.join(predict_dir, 'pixel', 'score', file_name))
+        flatten_score = score.flatten()
+
+        # 整体打分直方图
+        plt.hist(flatten_score, bins=50, log=False)
+        plt.savefig(os.path.join(each_statistics_dir, 'whole_score_histogram'))
+        plt.cla()
+
+        with open(os.path.join(test_dir, 'label', 'sample', file_name + '.txt'), "r") as f:
+            sample_label = f.readline()
+        sample_label = int(sample_label)
+
+        if sample_label == 1:
+            # 异常区域打分直方图
+            label, _ = ni_load(os.path.join(test_dir, 'label', 'pixel', file_name))
+            abnormal_area_score = score[label == 1]
+            plt.hist(abnormal_area_score, bins=50, log=False)
+            plt.savefig(os.path.join(each_statistics_dir, 'abnormal_area_score_histogram'))
+            plt.cla()
+
+            abnormal_number = len(abnormal_area_score)
+            # print(f'abnormal_number: {abnormal_number}')
+        elif sample_label == 0:
+            abnormal_number = 10000
+        else: raise Exception(f'sample_label有问题: {sample_label}')
+
+        # 高分区域打分直方图
+        ordered_flatten_score = np.sort(flatten_score)[::-1]
+        large_score = ordered_flatten_score[0: abnormal_number]
+        plt.hist(large_score, bins=50, log=False)
+        plt.savefig(os.path.join(each_statistics_dir, 'max_score_area_score_histogram'))
+        plt.cla()
+
+        max_score = large_score[0]
+        img = score / max_score
+        ni_save(os.path.join(each_statistics_dir, 'normalized'), img, ni_aff)
+
+
+def template_match_ex(test_dir): # 读进来的是nii.gz
+    from util.configure import TRAIN_DATASET_DIR
+    from scripts.evalresults import eval_dir
+
+    score_dir, pred_pixel_dir, pred_sample_dir = init_validation_dir('temmat', test_dir)
+    templates = load_array(os.path.join(TRAIN_DATASET_DIR, 'preprocessed'))
+
+    print('predict')
+    for f_name in os.listdir(os.path.join(test_dir, 'data')):
+        print(f'f_name: {f_name}')
+        np_array, ni_aff = ni_load(os.path.join(test_dir, 'data', f_name))
+
+        score, rec = template_match(templates, np_array)
+        save_images(pred_pixel_dir, f_name, ni_aff, score=score, rec=rec)
+
+        sample_score = get_sample_score(score)
+        with open(os.path.join(pred_sample_dir, f_name + ".txt"), "w") as target_file:
+            target_file.write(str(sample_score))
+    
+    eval_dir(pred_dir=os.path.join(pred_pixel_dir, 'score'), label_dir=os.path.join(test_dir, 'label', 'pixel'), mode='pixel', save_file=os.path.join(score_dir, 'pixel'))
+    eval_dir(pred_dir=pred_sample_dir, label_dir=os.path.join(test_dir, 'label', 'sample'), mode='sample', save_file=os.path.join(score_dir, 'sample'))
+
+
+def template_match(imgs, np_array): # imgs 四维
+    min_score_num = np.inf
+    min_score_index = -1
+
+    length = len(imgs)
+    handle = tqdm(enumerate(imgs))
+    for i, img in handle:
+        score = (img - np_array) ** 2
+        score_num = np.sum(score)
+        if score_num < min_score_num:
+            min_score_num = score_num
+            min_score_index = i
+
+        handle.set_description_str(f'{i+1}/{length}')
+
+    rec = imgs[min_score_index]
+    score = (rec - np_array) ** 2
+    return score, rec
+
+
+def get_sample_score(score):
+    slice_scores = []
+    for sli in score:
+        slice_score = np.mean(sli)
+        slice_scores.append(slice_score)
+    return np.max(slice_scores)
+
+
+def load_array(path):
+    print(f'load_array')
+    imgs = []
+    handle = tqdm(os.listdir(path))
+    for fname in handle:
+        if fname.endswith('data.npy'):
+            np_array = np.load(os.path.join(path, fname))
+            imgs.append(np_array)
+    return imgs
 
 
 def init_validation_dir(algo_name, dataset_dir):
@@ -126,3 +196,9 @@ def init_validation_dir(algo_name, dataset_dir):
     if not os.path.exists(pred_sample_dir): os.mkdir(pred_sample_dir)
 
     return score_dir, pred_pixel_dir, pred_sample_dir
+
+
+if __name__ == '__main__':
+    from util.configure import TEST_DATASET_DIR
+    # template_match_ex(test_dir=TEST_DATASET_DIR)
+    template_statistics(test_dir=TEST_DATASET_DIR)

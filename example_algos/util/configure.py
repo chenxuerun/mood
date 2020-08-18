@@ -6,11 +6,11 @@ from example_algos.nnunet.utilities.nd_softmax import softmax_helper
 from .function import init_parameter
 from example_algos.nnunet.network_architecture.generic_UNet import ConvDropoutNormNonlin
 
-TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_train'
+TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_toy'
 TEST_DATASET_NAME = 'brain_toy'
 TEST_DATASET_DIR = os.path.join('/home/cxr/Program_Datas/mood', TEST_DATASET_NAME)
 # TEST_DATASET_DIR = '/home/cxr/toy'
-LOAD_MODEL_NAME = 'unet_mask'
+LOAD_MODEL_NAME = 'unet_origin'
 
 
 # keywords
@@ -20,7 +20,7 @@ BASIC_KWS = {
     'train_data_dir': os.path.join(TRAIN_DATASET_DIR, 'preprocessed'),
     'test_dir': TEST_DATASET_DIR,
 
-    'load': True,
+    'load': False,
     'load_path': os.path.join(TRAIN_DATASET_DIR, 'log', LOAD_MODEL_NAME, 'checkpoint'),
     'name': LOAD_MODEL_NAME,
 }

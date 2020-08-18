@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch
 from trixi.util.pytorchexperimentstub import PytorchExperimentStub
 
-from example_algos.data.numpy_dataset import get_numpy2d_dataset
+from example_algos.data.numpy_dataset import get_numpy2d_dataset, DataPreFetcher
 
 
 class Algorithm:
@@ -47,6 +47,8 @@ class Algorithm:
             n_items=n_items,
             functions_dict=self.dataset_functions,
         )
+        train_loader = DataPreFetcher(train_loader)
+        val_loader = DataPreFetcher(val_loader)
 
         for epoch in range(self.n_epochs):
             self.model.train()
@@ -54,6 +56,7 @@ class Algorithm:
 
             data_loader_ = tqdm(enumerate(train_loader))
             for batch_idx, data in data_loader_:
+                # data = data.cuda()
                 loss = self.train_model(data)
 
                 train_loss += loss.item()
@@ -226,11 +229,12 @@ class Algorithm:
         data_tensor = torch.from_numpy(np_array).float()
         data_tensor = to_transforms(data_tensor[None])[0]
 
+        data_tensor = data_tensor.cuda()
         score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor)
 
         if return_score:
             score_tensor = from_transforms(score_tensor[None])[0]
-            score = score_tensor.detach().numpy()
+            score = score_tensor.detach().cpu().numpy()
             score = self.revert_transpose(score)
         if return_ori:
             data_tensor = from_transforms(data_tensor[None])[0]
@@ -238,7 +242,7 @@ class Algorithm:
             ori = self.revert_transpose(ori)
         if return_rec:
             rec_tensor = from_transforms(rec_tensor[None])[0]
-            rec = rec_tensor.detach().numpy()
+            rec = rec_tensor.detach().cpu().numpy()
             rec = self.revert_transpose(rec)
 
         return {'score': score, 'ori': ori, 'rec': rec}

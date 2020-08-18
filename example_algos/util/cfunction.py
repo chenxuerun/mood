@@ -3,8 +3,6 @@ import os
 import torch
 import numpy as np
 
-from .constant import DEVICE
-
 
 class FuncFactory:
 
@@ -135,26 +133,26 @@ class FuncFactory:
 
         if recipe == 'predict':
             def get_input_label(data):
-                input = data[:, range(train_kws['see_slice']), :, :].to(DEVICE)
-                label = data[:, [train_kws['see_slice']], :, :].to(DEVICE)
+                input = data[:, range(train_kws['see_slice']), :, :]
+                label = data[:, [train_kws['see_slice']], :, :]
                 return input, label
         elif recipe == 'mask':
             import random
             from .ce_noise import get_square_mask
             def get_input_label(data):
-                label = data.to(DEVICE)
+                label = data
                 if random.random() < train_kws['data_augment_prob']:
                     ce_tensor = get_square_mask(data.shape, square_size=train_kws['mask_square_size'], 
                         n_squares=1, noise_val=(torch.min(data).item(), torch.max(data).item()), data=data)
                     ce_tensor = torch.from_numpy(ce_tensor).float()
                     input_noisy = torch.where(ce_tensor != 0, ce_tensor, data)
-                    input = input_noisy.to(DEVICE)
+                    input = input_noisy
                 else:
                     input = label
                 return input, label
         elif recipe == 'rotate':
             def get_input_label(data):
-                label = data.to(DEVICE)
+                label = data
                 input = torch.rot90(label, 1, [2, 3])
                 return input, label
         elif recipe == 'split_rotate':
@@ -162,12 +160,12 @@ class FuncFactory:
                 a, b = data.chunk(2, 2)
                 a1, a2 = a.chunk(2, 3)
                 b1, b2 = b.chunk(2, 3)
-                label = torch.cat((a1, a2, b1, b2), 0).to(DEVICE)
+                label = torch.cat((a1, a2, b1, b2), 0)
                 input = torch.rot90(label, 1, [2, 3])
                 return input, label
         else:
             def get_input_label(data):
-                input = data.to(DEVICE)
+                input = data
                 label = input
                 return input, label
 
@@ -216,13 +214,13 @@ class FuncFactory:
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
                     for i in range(data_tensor.shape[0] - see_slice):
-                        input = data_tensor[i: i + see_slice, :, :].unsqueeze(0).to(DEVICE)                                              # (1, x, f, f)
+                        input = data_tensor[i: i + see_slice, :, :].unsqueeze(0)                                              # (1, x, f, f)
                         out = model(input)                                                                                                                                          # (1, 1, f, f)
-                        label = data_tensor[[i + see_slice], :, :].unsqueeze(0).to(DEVICE)
+                        label = data_tensor[[i + see_slice], :, :].unsqueeze(0)
                         loss = torch.pow(out - label, 2)
 
-                        rec_tensor[[i + see_slice]] = out[0].cpu()
-                        loss_tensor[[i + see_slice]] = loss[0].cpu()
+                        rec_tensor[[i + see_slice]] = out[0]
+                        loss_tensor[[i + see_slice]] = loss[0]
                 return loss_tensor, rec_tensor
 
         elif recipe == 'rotate':
@@ -233,13 +231,13 @@ class FuncFactory:
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)     # (1, 1, f, f)
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)                                   # (1, 1, f, f)
                         input = torch.rot90(label, 1, [2, 3])
                         rec = model(input)
                         loss = torch.pow(label - rec, 2)
 
-                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :].cpu()                                    # (1, f, f)
-                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :].cpu()
+                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :]                                                     # (1, f, f)
+                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
                 return loss_tensor, rec_tensor
 
         elif recipe == 'split_rotate':
@@ -250,7 +248,7 @@ class FuncFactory:
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
                         a, b = label.chunk(2, 2)
                         a1, a2 = a.chunk(2, 3)
                         b1, b2 = b.chunk(2, 3)
@@ -265,8 +263,8 @@ class FuncFactory:
                         rec = torch.cat((a_out, b_out), 2)
                         loss = torch.pow(label - rec, 2)
                         
-                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :].cpu()
-                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :].cpu()
+                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :]
+                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
                 return loss_tensor, rec_tensor
 
         else:
@@ -277,13 +275,13 @@ class FuncFactory:
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)     # (1, 1, f, f)
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)                     # (1, 1, f, f)
                         input = label
                         rec = model(input)
                         loss = torch.pow(input - rec, 2)
 
-                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :].cpu()
-                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :].cpu()
+                        rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :]
+                        loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
                 return loss_tensor, rec_tensor
 
         return get_pixel_score
@@ -299,9 +297,9 @@ class FuncFactory:
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(data_tensor.shape[0] - see_slice):
-                        input = data_tensor[i: i+see_slice].unsqueeze(0).to(DEVICE)
+                        input = data_tensor[i: i+see_slice].unsqueeze(0)
                         out = model(input)
-                        label = data_tensor[[i+see_slice]].unsqueeze(0).to(DEVICE)
+                        label = data_tensor[[i+see_slice]].unsqueeze(0)
                         loss = torch.mean(torch.pow(out - label, 2), dim=(1, 2, 3))
                         slice_scores.append(loss.item())
                 return np.max(slice_scores)
@@ -313,7 +311,7 @@ class FuncFactory:
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
                         input = torch.rot90(label, 1, [2, 3])
                         rec = model(input)
                         loss = torch.mean(torch.pow(label - rec, 2), dim=(1, 2, 3))
@@ -327,7 +325,7 @@ class FuncFactory:
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
+                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
                         a, b = label.chunk(2, 2)
                         a1, a2 = a.chunk(2, 3)
                         b1, b2 = b.chunk(2, 3)
@@ -352,7 +350,7 @@ class FuncFactory:
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        input = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1).to(DEVICE)
+                        input = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
                         rec = model(input)
                         loss = torch.mean(torch.pow(input - rec, 2), dim=(1, 2, 3))
                         slice_scores += loss.cpu().tolist()

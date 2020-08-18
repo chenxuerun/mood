@@ -3,11 +3,13 @@ import os
 import json
 
 import torch
+torch.cuda.set_device(1)
+
 from trixi.logger import PytorchExperimentLogger
 
 from .algorithm import Algorithm
 from .cfunction import FuncFactory
-from .constant import DEVICE
+
 
 class AlgoFactory:
     def __init__(self):
@@ -54,6 +56,9 @@ class AlgoFactory:
 
         algo = Algorithm(basic_kws=basic_kws, train_kws=train_kws)
 
+        if model_type == 'temmat':
+            return algo
+
         # 为algo加入模型，在这里都是字符串，后面可能要转成对象，in_channels也在后面加
         if not basic_kws['load']:
             from .configure import CONFIGURE_DICT
@@ -67,7 +72,7 @@ class AlgoFactory:
             AlgoFactory.save_config(data=model_kws, filename=os.path.join(basic_kws['log_dir'], ex_dir, 'config/model_kws.json'))
 
         self.FF.getFunction('modify_model_kws', train_kws)(model_kws)
-        model = AlgoFactory.getModel(model_type=model_type, model_kws=model_kws).to(DEVICE)
+        model = AlgoFactory.getModel(model_type=model_type, model_kws=model_kws).cuda()
         optimizer = torch.optim.Adam(model.parameters(), lr=train_kws['lr'])
 
         if basic_kws['load']:

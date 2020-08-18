@@ -11,6 +11,7 @@ from time import sleep
 import numpy as np
 from monai.transforms import AddChannel, Compose, Resize, ScaleIntensity, ToTensor
 from torch.utils.data import DataLoader, Dataset
+import torch
 
 # from example_algos.util.constant import SELECT_DIM, SEE_SLICE, RECIPE
 
@@ -151,6 +152,36 @@ def get_numpy3d_dataset(
         drop_last=drop_last,
     )
     return data_loader
+
+
+class DataPreFetcher():
+    def __init__(self, loader):
+        self.loader = loader
+        self.stream = torch.cuda.Stream()
+    
+    def preload(self):
+        try:
+            self.buffered = next(self.data_loader_)
+        except StopIteration:
+            self.buffered = None
+            return
+        with torch.cuda.stream(self.stream):
+            self.buffered = self.buffered.cuda(non_blocking=True)
+
+    def __len__(self): return len(self.loader)
+
+    def __iter__(self):
+        self.data_loader_ = iter(self.loader)
+        self.preload()
+        return self
+
+    def __next__(self):
+        torch.cuda.current_stream().wait_stream(self.stream)
+        data = self.buffered
+        if data == None:
+            raise StopIteration()
+        self.preload()
+        return data
 
 
 class Numpy2dDataSet(Dataset):
