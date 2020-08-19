@@ -254,5 +254,6 @@ class Algorithm:
         data_tensor = torch.from_numpy(np_array).float()
         data_tensor = to_transforms(data_tensor[None])[0]
 
+        data_tensor = data_tensor.cuda()
         sample_score = self.get_sample_score(self.model, data_tensor)
         return sample_score

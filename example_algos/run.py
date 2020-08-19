@@ -10,9 +10,9 @@ from example_algos.util.factory import AlgoFactory
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_mode', type=str, default='train')
-    parser.add_argument('--model_type', type=str, default='unet')
-    parser.add_argument('--recipe', type=str, default='origin')
+    parser.add_argument('--run_mode', type=str, default='predict')
+    parser.add_argument('--model_type', type=str, default=None)
+    parser.add_argument('--recipe', type=str, default=None)
     args = parser.parse_args()
 
     run_mode = args.run_mode
