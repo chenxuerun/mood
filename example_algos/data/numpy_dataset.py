@@ -82,8 +82,6 @@ def get_numpy2d_dataset(
         [DataLoader]: Pytorch data loader which loads a Numpy2dDataSet
     """
 
-    transforms = get_transforms_2d(target_size=target_size)
-
     data_set = Numpy2dDataSet(
         base_dir=base_dir,
         mode=mode,
@@ -91,7 +89,6 @@ def get_numpy2d_dataset(
         file_pattern=file_pattern,
         slice_offset=slice_offset,
         caching=caching,
-        transforms=transforms,
         functions_dict=functions_dict,
     )
 
@@ -193,7 +190,6 @@ class Numpy2dDataSet(Dataset):
         file_pattern="*data.npy",
         slice_offset=0,
         caching=True,
-        transforms=None,
         functions_dict={},
     ):
         """Dataset which loads 2D slices from a dir of 3D Numpy arrays.
@@ -216,7 +212,7 @@ class Numpy2dDataSet(Dataset):
         self.items = self.load_dataset(
             base_dir, mode=mode, pattern=file_pattern, slice_offset=slice_offset, caching=caching
         )
-        self.transforms = transforms
+        # self.transforms = transforms
 
         self.data_len = len(self.items)
 

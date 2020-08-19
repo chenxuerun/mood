@@ -223,11 +223,11 @@ class Algorithm:
         np_array = self.transpose(np_array)
 
         ori_shape = np_array.shape
-        to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
+        # to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
         from_transforms = torch.nn.Upsample((ori_shape[1], ori_shape[2]), mode="bilinear")
 
         data_tensor = torch.from_numpy(np_array).float()
-        data_tensor = to_transforms(data_tensor[None])[0]
+        data_tensor = self.to_transforms(data_tensor[None])[0]
 
         data_tensor = data_tensor.cuda()
         score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor)
@@ -249,10 +249,9 @@ class Algorithm:
 
 
     def score_sample_2d(self, np_array):
-        to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
-        
+        # to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
         data_tensor = torch.from_numpy(np_array).float()
-        data_tensor = to_transforms(data_tensor[None])[0]
+        data_tensor = self.to_transforms(data_tensor[None])[0]
 
         data_tensor = data_tensor.cuda()
         sample_score = self.get_sample_score(self.model, data_tensor)

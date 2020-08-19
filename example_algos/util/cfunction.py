@@ -13,20 +13,37 @@ class FuncFactory:
             create_fn_name = 'create_' + fn_name + '_fn'
             if not hasattr(self, create_fn_name):
                 raise Exception(f'工厂无法创造函数：{fn_name}')
-            return getattr(self, create_fn_name)(*args)
+            func = getattr(self, create_fn_name)(*args)
+            setattr(self, fn_name, func)
+            return func
 
 
     # 加一些训练参数
     def create_modify_train_kws_fn(self, recipe, kws):
-        if recipe == 'predict':
-            def modify_train_kws(train_kws):
+        func_list = []
+
+        if 'resolution' in recipe:
+            def modify_train_kws_fn(train_kws):
+                train_kws['resolution'] = kws['resolution']
+        else:
+            def modify_train_kws_fn(train_kws): pass
+        func_list.append(modify_train_kws_fn)
+
+        if 'predict' in recipe:
+            def modify_train_kws_fn(train_kws):
                 train_kws['see_slice'] = kws['see_slice']
-        elif recipe == 'mask':
-            def modify_train_kws(train_kws):
+        elif 'mask' in recipe:
+            def modify_train_kws_fn(train_kws):
                 train_kws['data_augment_prob'] = kws['data_augment_prob']
                 train_kws['mask_square_size'] = kws['mask_square_size']
         else:
-            def modify_train_kws(train_kws): pass
+            def modify_train_kws_fn(train_kws): pass
+        func_list.append(modify_train_kws_fn)
+
+        def modify_train_kws(train_kws):
+            for func in func_list:
+                func(train_kws)
+
         return modify_train_kws
 
 
@@ -37,16 +54,16 @@ class FuncFactory:
 
         func_list = []
 
-        if recipe == 'predict':
-            def modify_model_kws_fn1(model_kws):
+        if 'predict' in recipe:
+            def modify_model_kws_fn(model_kws):
                 model_kws['in_channels'] = train_kws['see_slice']
         else:
-            def modify_model_kws_fn1(model_kws):
+            def modify_model_kws_fn(model_kws):
                 model_kws['in_channels'] = 1
-        func_list.append(modify_model_kws_fn1)
+        func_list.append(modify_model_kws_fn)
         
         if model_type == 'unet':
-            def modify_model_kws_fn2(model_kws):
+            def modify_model_kws_fn(model_kws):
                 from .function import transform_dict_data, init_parameter
                 from example_algos.nnunet.network_architecture.generic_UNet import ConvDropoutNormNonlin
                 from example_algos.nnunet.utilities.nd_softmax import softmax_helper
@@ -62,8 +79,8 @@ class FuncFactory:
                 }
                 transform_dict_data(model_kws, UNET_OBJ_MAP)
         else:
-            def modify_model_kws_fn2(model_kws): pass
-        func_list.append(modify_model_kws_fn2)
+            def modify_model_kws_fn(model_kws): pass
+        func_list.append(modify_model_kws_fn)
 
         def modify_model_kws(model_kws):
             for func in func_list:
@@ -87,7 +104,7 @@ class FuncFactory:
 
 
     def create_get_slices_fn(self, train_kws):
-        if train_kws['recipe'] == 'predict':
+        if 'predict' in train_kws['recipe']:
             offset = train_kws['see_slice']
         else: offset = 0
         def get_slices(i, npy_file, file_len):
@@ -97,7 +114,7 @@ class FuncFactory:
 
 
     def create_get_data_slice_num_fn(self, train_kws):
-        if train_kws['recipe'] == 'predict':
+        if 'predict' in train_kws['recipe']:
             slice_num = train_kws['see_slice'] + 1
         else: slice_num = 1
         def get_data_slice_num(): return slice_num
@@ -119,6 +136,41 @@ class FuncFactory:
         return get_slice_data
 
 
+    def create_transforms_fn(self, train_kws):
+        from monai.transforms import Resize, Compose, ToTensor
+        func_list = []
+        recipe = train_kws['recipe']
+        common_resize = Resize((train_kws['target_size'], train_kws['target_size']))
+
+        if 'resolution' in recipe:
+            func_list.append(
+                Resize((train_kws['resolution'], train_kws['resolution']))
+            )
+        func_list.append(common_resize)
+        func_list.append(ToTensor())
+        return Compose(func_list)
+
+
+    def create_to_transforms_fn(self, train_kws):
+        func_list = []
+
+        if 'resolution' in train_kws['recipe']:
+            func_list.append(
+                torch.nn.Upsample((train_kws['resolution'], train_kws['resolution']), mode="bilinear")
+            )
+            
+        func_list.append(
+            torch.nn.Upsample((train_kws['target_size'], train_kws['target_size']), mode="bilinear")
+        )
+        
+        def to_transforms(data):
+            for func in func_list:
+                data = func(data)
+            return data
+
+        return to_transforms
+
+
     def create_calculate_loss_fn(self, train_kws):
         def calculate_loss(model, input, label):
             out = model(input)
@@ -127,16 +179,17 @@ class FuncFactory:
         return calculate_loss
 
 
-    # data 是一个batch的数据
+    # data 是一个batch的数据，已经经过了resize处理。
+    # 仅在训练时使用这个函数。
     def create_get_input_label_fn(self, train_kws):
         recipe = train_kws['recipe']
 
-        if recipe == 'predict':
+        if 'predict' in recipe:
             def get_input_label(data):
                 input = data[:, range(train_kws['see_slice']), :, :]
                 label = data[:, [train_kws['see_slice']], :, :]
                 return input, label
-        elif recipe == 'mask':
+        elif 'mask' in recipe:
             import random
             from .ce_noise import get_square_mask
             def get_input_label(data):
@@ -150,12 +203,12 @@ class FuncFactory:
                 else:
                     input = label
                 return input, label
-        elif recipe == 'rotate':
+        elif 'rotate' in recipe:
             def get_input_label(data):
                 label = data
                 input = torch.rot90(label, 1, [2, 3])
                 return input, label
-        elif recipe == 'split_rotate':
+        elif 'split_rotate' in recipe:
             def get_input_label(data):
                 a, b = data.chunk(2, 2)
                 a1, a2 = a.chunk(2, 3)
@@ -207,7 +260,7 @@ class FuncFactory:
     def create_get_pixel_score_fn(self, train_kws):
         recipe = train_kws['recipe']
 
-        if recipe == 'predict':
+        if 'predict' in recipe:
             see_slice = train_kws['see_slice']
             def get_pixel_score(model, data_tensor):
                 rec_tensor = torch.zeros_like(data_tensor)                                                                                                 # (l, f, f)
@@ -223,7 +276,7 @@ class FuncFactory:
                         loss_tensor[[i + see_slice]] = loss[0]
                 return loss_tensor, rec_tensor
 
-        elif recipe == 'rotate':
+        elif 'rotate' in recipe:
             from math import ceil
             batch_size = train_kws['batch_size']
             def get_pixel_score(model, data_tensor):
@@ -240,7 +293,7 @@ class FuncFactory:
                         loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
                 return loss_tensor, rec_tensor
 
-        elif recipe == 'split_rotate':
+        elif 'split_rotate' in recipe:
             from math import ceil
             batch_size = train_kws['batch_size']
             def get_pixel_score(model, data_tensor):
@@ -291,7 +344,7 @@ class FuncFactory:
     def create_get_sample_score_fn(self, train_kws):
         recipe = train_kws['recipe']
 
-        if recipe == 'predict':
+        if 'predict' in recipe:
             see_slice = train_kws['see_slice']
             def get_sample_score(model, data_tensor):
                 slice_scores = []
@@ -304,7 +357,7 @@ class FuncFactory:
                         slice_scores.append(loss.item())
                 return np.max(slice_scores)
 
-        elif recipe == 'rotate':
+        elif 'rotate' in recipe:
             from math import ceil
             batch_size = train_kws['batch_size']
             def get_sample_score(model, data_tensor):
@@ -318,7 +371,7 @@ class FuncFactory:
                         slice_scores += loss.cpu().tolist()
                 return np.max(slice_scores)
 
-        elif recipe == 'split_rotate':
+        elif 'split_rotate' in recipe:
             from math import ceil
             batch_size = train_kws['batch_size']
             def get_sample_score(model, data_tensor):

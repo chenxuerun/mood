@@ -10,21 +10,25 @@ from example_algos.util.factory import AlgoFactory
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_mode', type=str, default='predict')
+    parser.add_argument('--run_mode', type=str, default='train')
     parser.add_argument('--model_type', type=str, default=None)
-    parser.add_argument('--recipe', type=str, default=None)
+    parser.add_argument('--recipe', nargs='+', type=str, default=None)
     args = parser.parse_args()
 
     run_mode = args.run_mode
     model_type = args.model_type
-    recipe = args.recipe
+    recipe = args.recipe                            # list
     assert run_mode in ['train', 'predict', 'validate', 'statistics']
     assert model_type in ['unet', 'zcae', 'zunet', None]
-    assert recipe in ['origin', 'predict', 'mask', 'rotate', 'split_rotate', None]
+    if type(recipe) == list:
+        for x in recipe:
+            assert x in ['origin', 'predict', 'rotate', 'split_rotate', 'mask', 'resolution']
+    elif type(recipe) == str:
+        assert recipe in ['origin', 'predict', 'rotate', 'split_rotate', 'mask', 'resolution']
 
     af = AlgoFactory()
     algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe)
-    algo.run(algo)
+    algo.run()
 
 
 def auto_predict():
