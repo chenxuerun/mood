@@ -3,12 +3,13 @@ import os
 from math import ceil
 import time
 from tqdm import tqdm
-
+import torch.nn as nn
 from tqdm import tqdm
 import torch
 from trixi.util.pytorchexperimentstub import PytorchExperimentStub
 
 from example_algos.data.numpy_dataset import get_numpy2d_dataset, DataPreFetcher
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 class Algorithm:
@@ -228,8 +229,8 @@ class Algorithm:
 
         data_tensor = torch.from_numpy(np_array).float()
         data_tensor = self.to_transforms(data_tensor[None])[0]
-
-        data_tensor = data_tensor.cuda()
+        data_tensor = data_tensor.to(device)
+        #data_tensor = data_tensor.cuda()
         score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor)
 
         if return_score:
@@ -252,7 +253,7 @@ class Algorithm:
         # to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
         data_tensor = torch.from_numpy(np_array).float()
         data_tensor = self.to_transforms(data_tensor[None])[0]
-
-        data_tensor = data_tensor.cuda()
+        data_tensor = data_tensor.to(device)
+        #data_tensor = data_tensor.cuda()
         sample_score = self.get_sample_score(self.model, data_tensor)
         return sample_score

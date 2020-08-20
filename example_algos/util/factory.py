@@ -3,12 +3,13 @@ import os
 import json
 
 import torch
-torch.cuda.set_device(1)
-
+#torch.cuda.set_device(1)
+import torch.nn as nn
 from trixi.logger import PytorchExperimentLogger
 
 from .algorithm import Algorithm
 from .cfunction import FuncFactory
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 class AlgoFactory:
@@ -72,7 +73,12 @@ class AlgoFactory:
             AlgoFactory.save_config(data=model_kws, filename=os.path.join(basic_kws['log_dir'], ex_dir, 'config/model_kws.json'))
 
         self.FF.getFunction('modify_model_kws', train_kws)(model_kws)
-        model = AlgoFactory.getModel(model_type=model_type, model_kws=model_kws).cuda()
+        #model = AlgoFactory.getModel(model_type=model_type, model_kws=model_kws).cuda()
+        model = AlgoFactory.getModel(model_type=model_type, model_kws=model_kws)
+        if torch.cuda.device_count() > 1:
+            print("Use", torch.cuda.device_count(), 'gpus')
+        model = nn.DataParallel(model)
+        model.to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=train_kws['lr'])
 
         if basic_kws['load']:
