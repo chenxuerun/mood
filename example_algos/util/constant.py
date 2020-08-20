@@ -8,6 +8,8 @@ import numpy as np
 # DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 # DEVICE = torch.device('cpu')
 
+MULTI_GPU = False
+
 SAVE_PATH = '/home/cxr/Downloads'
 
 AFFINE = np.array([[0.69999999, 0.        , 0.        , 0.        ],

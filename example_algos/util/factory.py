@@ -15,7 +15,7 @@ class AlgoFactory:
     def __init__(self):
         self.FF = FuncFactory()
 
-    def getAlgo(self, run_mode, model_type=None, recipe=None, **kwargs):
+    def getAlgo(self, run_mode, model_type=None, recipe=None, other=[], **kwargs):
         # 创建基本的algo
         # basic_kws永远是手动配置的，而其它两个只需要第一次手动配置，以后就会在路径中读取
 
@@ -39,7 +39,7 @@ class AlgoFactory:
             train_kws = TRAIN_KWS
 
             assert recipe is not None, '未指定recipe'
-            self.FF.getFunction('modify_train_kws', recipe, OTHER_KWS)(train_kws)
+            self.FF.getFunction('modify_train_kws', OTHER_KWS, recipe, *other)(train_kws)
 
             assert model_type is not None, '未指定model_type'
             train_kws['recipe'] = recipe

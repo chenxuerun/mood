@@ -128,9 +128,13 @@ class Algorithm:
         has_num = 'num' in kwargs.keys()
         if has_num: num = kwargs['num']
         return_rec = kwargs['return_rec'] if 'return_rec' in kwargs.keys() else False
+        
+        return_rec = True
 
         self.model.eval()
         for i, f_name in handle:
+            if not f_name.startswith('n2'): continue
+
             if has_num:
                 if i == num: break
             ni_file_path = os.path.join(test_dir, f_name)
@@ -186,9 +190,9 @@ class Algorithm:
 
             score, ni_aff = ni_load(os.path.join(predict_dir, 'pixel', 'score', file_name))
             flatten_score = score.flatten()
-            
+
             # 整体打分直方图
-            plt.hist(flatten_score, bins=50, log=True)
+            plt.hist(flatten_score, bins=50, log=False)
             plt.savefig(os.path.join(each_statistics_dir, 'whole_score_histogram'))
             plt.cla()
 
@@ -200,22 +204,26 @@ class Algorithm:
                 # 异常区域打分直方图
                 label, _ = ni_load(os.path.join(test_dir, 'label', 'pixel', file_name))
                 abnormal_area_score = score[label == 1]
-                plt.hist(abnormal_area_score, bins=50, log=True)
+                plt.hist(abnormal_area_score, bins=50, log=False)
                 plt.savefig(os.path.join(each_statistics_dir, 'abnormal_area_score_histogram'))
                 plt.cla()
 
                 abnormal_number = len(abnormal_area_score)
-                print(f'abnormal_number: {abnormal_number}')
+                # print(f'abnormal_number: {abnormal_number}')
             elif sample_label == 0:
                 abnormal_number = 10000
             else: raise Exception(f'sample_label有问题: {sample_label}')
 
-            # 打分最高区域
-            img = score.copy()
+            # 高分区域打分直方图
             ordered_flatten_score = np.sort(flatten_score)[::-1]
-            threshold = ordered_flatten_score[abnormal_number]
-            img[img > threshold] = 1;   img[img <= threshold] = 0
-            ni_save(os.path.join(each_statistics_dir, 'highest_score'), img, ni_aff)
+            large_score = ordered_flatten_score[0: abnormal_number]
+            plt.hist(large_score, bins=50, log=False)
+            plt.savefig(os.path.join(each_statistics_dir, 'max_score_area_score_histogram'))
+            plt.cla()
+
+            max_score = large_score[0]
+            img = score / max_score
+            ni_save(os.path.join(each_statistics_dir, 'normalized'), img, ni_aff)
 
 
     def score_pixel_2d(self, np_array, return_score=True, return_ori=False, return_rec=False):
@@ -227,10 +235,10 @@ class Algorithm:
         from_transforms = torch.nn.Upsample((ori_shape[1], ori_shape[2]), mode="bilinear")
 
         data_tensor = torch.from_numpy(np_array).float()
-        data_tensor = self.to_transforms(data_tensor[None])[0]
+        label_tensor = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")(data_tensor[None])[0].cuda() # resolution
+        data_tensor = self.to_transforms(data_tensor[None])[0].cuda()
 
-        data_tensor = data_tensor.cuda()
-        score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor)
+        score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor, label_tensor=label_tensor)
 
         if return_score:
             score_tensor = from_transforms(score_tensor[None])[0]
@@ -251,8 +259,8 @@ class Algorithm:
     def score_sample_2d(self, np_array):
         # to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
         data_tensor = torch.from_numpy(np_array).float()
-        data_tensor = self.to_transforms(data_tensor[None])[0]
+        label_tensor = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")(data_tensor[None])[0].cuda() # resolution
+        data_tensor = self.to_transforms(data_tensor[None])[0].cuda()
 
-        data_tensor = data_tensor.cuda()
-        sample_score = self.get_sample_score(self.model, data_tensor)
+        sample_score = self.get_sample_score(self.model, data_tensor, label_tensor=label_tensor)
         return sample_score

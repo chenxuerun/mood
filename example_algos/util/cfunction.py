@@ -18,21 +18,24 @@ class FuncFactory:
             return func
 
 
-    # 加一些训练参数
-    def create_modify_train_kws_fn(self, recipe, kws):
+    # 加一些训练参数，args是额外要求的训练细节
+    def create_modify_train_kws_fn(self, kws, *args):
         func_list = []
 
-        if 'resolution' in recipe:
+        if 'resolution' in args:
             def modify_train_kws_fn(train_kws):
                 train_kws['resolution'] = kws['resolution']
-        else:
-            def modify_train_kws_fn(train_kws): pass
-        func_list.append(modify_train_kws_fn)
+            func_list.append(modify_train_kws_fn)
 
-        if 'predict' in recipe:
+        if 'change_loss' in args:
+            def modify_train_kws_fn(train_kws):
+                train_kws['loss_type'] = kws['loss_type']
+            func_list.append(modify_train_kws_fn)
+
+        if 'predict' in args:
             def modify_train_kws_fn(train_kws):
                 train_kws['see_slice'] = kws['see_slice']
-        elif 'mask' in recipe:
+        elif 'mask' in args:
             def modify_train_kws_fn(train_kws):
                 train_kws['data_augment_prob'] = kws['data_augment_prob']
                 train_kws['mask_square_size'] = kws['mask_square_size']
@@ -78,10 +81,8 @@ class FuncFactory:
                     'net_block': ConvDropoutNormNonlin,
                 }
                 transform_dict_data(model_kws, UNET_OBJ_MAP)
-        else:
-            def modify_model_kws_fn(model_kws): pass
-        func_list.append(modify_model_kws_fn)
-
+            func_list.append(modify_model_kws_fn)
+        
         def modify_model_kws(model_kws):
             for func in func_list:
                 func(model_kws)
@@ -172,10 +173,27 @@ class FuncFactory:
 
 
     def create_calculate_loss_fn(self, train_kws):
-        def calculate_loss(model, input, label):
-            out = model(input)
-            loss = torch.mean(torch.pow(out - label, 2))
-            return loss
+        if 'loss_type' in train_kws.keys():
+            loss_type = train_kws['loss_type']
+            if loss_type == '7loss':
+                def  calculate_loss(model, input, label):
+                    d0, d1, d2, d3, d4, d5, d6  = model(input)
+                    loss0 = torch.mean(torch.pow(d0 - label, 2))
+                    loss1 = torch.mean(torch.pow(d1 - label, 2))
+                    loss2 = torch.mean(torch.pow(d2 - label, 2))
+                    loss3 = torch.mean(torch.pow(d3 - label, 2))
+                    loss4 = torch.mean(torch.pow(d4 - label, 2))
+                    loss5 = torch.mean(torch.pow(d5 - label, 2))
+                    loss6 = torch.mean(torch.pow(d6 - label, 2))
+                    loss = torch.mean(loss0, loss1, loss2, loss3, loss4, loss5, loss6)
+                    return loss
+            else: raise Exception(f'未知loss_type: {loss_type}')
+        else:
+            def calculate_loss(model, input, label):
+                out = model(input)
+                loss = torch.mean(torch.pow(out - label, 2))
+                return loss
+        
         return calculate_loss
 
 
@@ -197,7 +215,7 @@ class FuncFactory:
                 if random.random() < train_kws['data_augment_prob']:
                     ce_tensor = get_square_mask(data.shape, square_size=train_kws['mask_square_size'], 
                         n_squares=1, noise_val=(torch.min(data).item(), torch.max(data).item()), data=data)
-                    ce_tensor = torch.from_numpy(ce_tensor).float()
+                    ce_tensor = torch.from_numpy(ce_tensor).float().cuda()
                     input_noisy = torch.where(ce_tensor != 0, ce_tensor, data)
                     input = input_noisy
                 else:
@@ -296,13 +314,16 @@ class FuncFactory:
         elif 'split_rotate' in recipe:
             from math import ceil
             batch_size = train_kws['batch_size']
-            def get_pixel_score(model, data_tensor):
+            def get_pixel_score(model, data_tensor, label_tensor=None):
+                if label_tensor == None:
+                    label_tensor = data_tensor
                 rec_tensor = torch.zeros_like(data_tensor)                                                                                                 # (l, f, f)
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-                        a, b = label.chunk(2, 2)
+                        label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
+                        data = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
+                        a, b = data.chunk(2, 2)
                         a1, a2 = a.chunk(2, 3)
                         b1, b2 = b.chunk(2, 3)
                         out = []
@@ -323,13 +344,15 @@ class FuncFactory:
         else:
             from math import ceil
             batch_size = train_kws['batch_size']
-            def get_pixel_score(model, data_tensor):
+            def get_pixel_score(model, data_tensor, label_tensor=None):
+                if label_tensor == None:
+                    label_tensor = data_tensor
                 rec_tensor = torch.zeros_like(data_tensor)                               # (l, f, f)
                 loss_tensor = torch.zeros_like(data_tensor)
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)                     # (1, 1, f, f)
-                        input = label
+                        label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)                     # (1, 1, f, f)
+                        input = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
                         rec = model(input)
                         loss = torch.pow(input - rec, 2)
 
@@ -346,13 +369,15 @@ class FuncFactory:
 
         if 'predict' in recipe:
             see_slice = train_kws['see_slice']
-            def get_sample_score(model, data_tensor):
+            def get_sample_score(model, data_tensor, label_tensor=None):
+                if label_tensor == None:
+                    label_tensor = data_tensor
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(data_tensor.shape[0] - see_slice):
+                        label = label_tensor[[i+see_slice]].unsqueeze(0)
                         input = data_tensor[i: i+see_slice].unsqueeze(0)
                         out = model(input)
-                        label = data_tensor[[i+see_slice]].unsqueeze(0)
                         loss = torch.mean(torch.pow(out - label, 2), dim=(1, 2, 3))
                         slice_scores.append(loss.item())
                 return np.max(slice_scores)
@@ -360,12 +385,15 @@ class FuncFactory:
         elif 'rotate' in recipe:
             from math import ceil
             batch_size = train_kws['batch_size']
-            def get_sample_score(model, data_tensor):
+            def get_sample_score(model, data_tensor, label_tensor=None):
+                if label_tensor == None:
+                    label_tensor = data_tensor
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-                        input = torch.rot90(label, 1, [2, 3])
+                        label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
+                        data = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
+                        input = torch.rot90(data, 1, [2, 3])
                         rec = model(input)
                         loss = torch.mean(torch.pow(label - rec, 2), dim=(1, 2, 3))
                         slice_scores += loss.cpu().tolist()
@@ -374,12 +402,15 @@ class FuncFactory:
         elif 'split_rotate' in recipe:
             from math import ceil
             batch_size = train_kws['batch_size']
-            def get_sample_score(model, data_tensor):
+            def get_sample_score(model, data_tensor, label_tensor=None):
+                if label_tensor == None:
+                    label_tensor = data_tensor
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
-                        label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-                        a, b = label.chunk(2, 2)
+                        label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
+                        data = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
+                        a, b = data.chunk(2, 2)
                         a1, a2 = a.chunk(2, 3)
                         b1, b2 = b.chunk(2, 3)
                         out = []
@@ -399,13 +430,16 @@ class FuncFactory:
         else:
             from math import ceil
             batch_size = train_kws['batch_size']
-            def get_sample_score(model, data_tensor):
+            def get_sample_score(model, data_tensor, label_tensor=None):
+                if label_tensor == None:
+                    label_tensor = data_tensor
                 slice_scores = []
                 with torch.no_grad():
                     for i in range(ceil(data_tensor.shape[0] / batch_size)):
+                        label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
                         input = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
                         rec = model(input)
-                        loss = torch.mean(torch.pow(input - rec, 2), dim=(1, 2, 3))
+                        loss = torch.mean(torch.pow(label - rec, 2), dim=(1, 2, 3))
                         slice_scores += loss.cpu().tolist()
                 return np.max(slice_scores)
 

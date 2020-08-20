@@ -10,24 +10,29 @@ from example_algos.util.factory import AlgoFactory
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_mode', type=str, default='train')
-    parser.add_argument('--model_type', type=str, default=None)
-    parser.add_argument('--recipe', nargs='+', type=str, default=None)
+    parser.add_argument('--run_mode', type=str, default='predict')
+    parser.add_argument('--model_type', type=str, default='unet')
+    parser.add_argument('--recipe', type=str, default='origin')
+    parser.add_argument('--other', type=str, nargs='+')
     args = parser.parse_args()
 
     run_mode = args.run_mode
     model_type = args.model_type
     recipe = args.recipe                            # list
+    other = args.other
     assert run_mode in ['train', 'predict', 'validate', 'statistics']
     assert model_type in ['unet', 'zcae', 'zunet', None]
-    if type(recipe) == list:
-        for x in recipe:
-            assert x in ['origin', 'predict', 'rotate', 'split_rotate', 'mask', 'resolution']
-    elif type(recipe) == str:
-        assert recipe in ['origin', 'predict', 'rotate', 'split_rotate', 'mask', 'resolution']
+    assert recipe in ['origin', 'predict', 'rotate', 'split_rotate', 'mask']
+    if other != None:
+        if type(other) == str:
+            assert other in ['resolution', 'change_loss']
+        elif type(recipe) == list:
+            for x in other:
+                assert x in ['resolution', 'change_loss']        
+    else: other = []
 
     af = AlgoFactory()
-    algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe)
+    algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe, other=other)
     algo.run()
 
 
@@ -51,7 +56,7 @@ def auto_predict():
         basic_kws['log_dir'] = log_dir
         basic_kws['load_path'] = os.path.join(log_dir, dir_name, 'checkpoint')
         algo = af.getAlgo(run_mode='predict', basic_kws=basic_kws)
-        algo.run(algo, num=20, return_rec=False)
+        algo.run(num=20, return_rec=False)
 
 
 def auto_validate():
@@ -63,7 +68,7 @@ def auto_validate():
         print(f'dir_name: {dir_name}')
         algo = af.getAlgo(run_mode='validate')
         algo.name = dir_name
-        algo.run(algo)
+        algo.run()
 
 
 def auto_statistics():
@@ -75,7 +80,7 @@ def auto_statistics():
         print(f'dir_name: {dir_name}')
         algo = af.getAlgo(run_mode='statistics')
         algo.name = dir_name
-        algo.run(algo)
+        algo.run()
 
 
 if __name__ == '__main__':

@@ -92,7 +92,7 @@ def get_square_mask(data_shape, square_size, n_squares, noise_val=(0, 0), channe
         # rnd_n_val = get_range_val(noise_val)
         rnd_square_size = get_range_val(square_size)
         rnd_n_squares = get_range_val(n_squares)
-        square_pos = torch.stack(torch.where(data[sample_idx][0] != 0)).T.numpy()
+        square_pos = torch.stack(torch.where(data[sample_idx][0] != 0)).T.cpu().numpy()
 
         ret_data[sample_idx] = mask_random_squares(
             data_shape[1:],

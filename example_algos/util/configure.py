@@ -37,6 +37,7 @@ OTHER_KWS = {
     'data_augment_prob': 0.8,
     'mask_square_size': 15,
     'resolution': 64,
+    'loss_type': '7loss',
 }
 
 CONFIGURE_DICT = {
