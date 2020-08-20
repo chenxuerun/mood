@@ -259,18 +259,8 @@ class Numpy2dDataSet(Dataset):
         slice_idx = slice_info[2]
 
         numpy_array = np.load(fn_name, mmap_mode="r")
-
-        # if RECIPE == 'predict': sli = SEE_SLICE + 1
-        # else: sli = 1
         
         slice_num = self.get_data_slice_num()
-
-        # if SELECT_DIM == 0:
-        #     numpy_slice = numpy_array[slice_idx : slice_idx + sli, :, :]
-        # elif SELECT_DIM == 1:
-        #     numpy_slice = numpy_array[:, slice_idx : slice_idx + sli, :].transpose(1, 0, 2)
-        # elif SELECT_DIM == 2:
-        #     numpy_slice = numpy_array[:, :, slice_idx : slice_idx + sli].transpose(2, 0, 1)
 
         numpy_slice = self.get_slice_data(numpy_array, slice_idx, slice_num)
 
@@ -318,9 +308,6 @@ class Numpy2dDataSet(Dataset):
 
             file_len = numpy_array.shape[1]
 
-            # if RECIPE == 'predict': off = SEE_SLICE
-            # else: off = 0
-            # [(i, npy_file, j) for j in range(slice_offset, file_len - slice_offset - off)]
             sli = self.get_slices(i, npy_file, file_len)
             slices.extend(sli)
 
@@ -328,11 +315,6 @@ class Numpy2dDataSet(Dataset):
             np.save(cache_file, slices)
 
         return slices
-
-    # @staticmethod
-    # def get_slices(i, npy_file):
-    #     slices = [(i, npy_file, j) for j in range(0, file_len)]
-    #     return slices
 
 
 class Numpy3dDataSet(Dataset):

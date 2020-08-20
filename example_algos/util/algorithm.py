@@ -128,12 +128,12 @@ class Algorithm:
         has_num = 'num' in kwargs.keys()
         if has_num: num = kwargs['num']
         return_rec = kwargs['return_rec'] if 'return_rec' in kwargs.keys() else False
-        
-        return_rec = True
+
+        # return_rec = True
 
         self.model.eval()
         for i, f_name in handle:
-            if not f_name.startswith('n2'): continue
+            # if not f_name.startswith('n2'): continue
 
             if has_num:
                 if i == num: break
@@ -235,7 +235,8 @@ class Algorithm:
         from_transforms = torch.nn.Upsample((ori_shape[1], ori_shape[2]), mode="bilinear")
 
         data_tensor = torch.from_numpy(np_array).float()
-        label_tensor = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")(data_tensor[None])[0].cuda() # resolution
+        # label_tensor = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")(data_tensor[None])[0].cuda() # resolution
+        label_tensor = None
         data_tensor = self.to_transforms(data_tensor[None])[0].cuda()
 
         score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor, label_tensor=label_tensor)
@@ -259,7 +260,8 @@ class Algorithm:
     def score_sample_2d(self, np_array):
         # to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
         data_tensor = torch.from_numpy(np_array).float()
-        label_tensor = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")(data_tensor[None])[0].cuda() # resolution
+        # label_tensor = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")(data_tensor[None])[0].cuda() # resolution
+        label_tensor = None
         data_tensor = self.to_transforms(data_tensor[None])[0].cuda()
 
         sample_score = self.get_sample_score(self.model, data_tensor, label_tensor=label_tensor)

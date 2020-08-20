@@ -11,8 +11,8 @@ from example_algos.util.factory import AlgoFactory
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_mode', type=str, default='predict')
-    parser.add_argument('--model_type', type=str, default='unet')
-    parser.add_argument('--recipe', type=str, default='origin')
+    parser.add_argument('--model_type', type=str, default=None)
+    parser.add_argument('--recipe', type=str, default=None)
     parser.add_argument('--other', type=str, nargs='+')
     args = parser.parse_args()
 
@@ -22,7 +22,7 @@ def main():
     other = args.other
     assert run_mode in ['train', 'predict', 'validate', 'statistics']
     assert model_type in ['unet', 'zcae', 'zunet', None]
-    assert recipe in ['origin', 'predict', 'rotate', 'split_rotate', 'mask']
+    assert recipe in ['origin', 'predict', 'rotate', 'split_rotate', 'mask', None]
     if other != None:
         if type(other) == str:
             assert other in ['resolution', 'change_loss']

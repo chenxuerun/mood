@@ -32,8 +32,8 @@ def nifti_to_numpy(input_folder: str, output_folder: str):
 
 
 if __name__ == "__main__":
-    input_dir = '/home/cxr/Program_Datas/mood/brain_toy/data'
-    output_dir = '/home/cxr/Program_Datas/mood/brain_toy/preprocessed'
+    input_dir = '/home/cxr/Program_Datas/mood/brain_train/data'
+    output_dir = '/home/cxr/Program_Datas/mood/brain_train/preprocessed'
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input_dir", required=False, type=str, default=input_dir)
     parser.add_argument("-o", "--output_dir", required=False, type=str, default=output_dir)

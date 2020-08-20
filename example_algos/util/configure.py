@@ -8,7 +8,7 @@ TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_train'
 TEST_DATASET_NAME = 'validate'
 TEST_DATASET_DIR = os.path.join('/home/cxr/Program_Datas/mood', TEST_DATASET_NAME)
 # TEST_DATASET_DIR = '/home/cxr/toy'
-LOAD_MODEL_NAME = 'unet_origin'
+LOAD_MODEL_NAME = 'unet_mask_resolution'
 
 # keywords
 BASIC_KWS = {
@@ -17,7 +17,7 @@ BASIC_KWS = {
     'train_data_dir': os.path.join(TRAIN_DATASET_DIR, 'preprocessed'),
     'test_dir': TEST_DATASET_DIR,
 
-    'load': True,
+    'load': False,
     'load_path': os.path.join(TRAIN_DATASET_DIR, 'log', LOAD_MODEL_NAME, 'checkpoint'),
     'name': LOAD_MODEL_NAME,
 }
