@@ -182,7 +182,7 @@ class Algorithm:
         if not os.path.exists(statistics_dir):
             os.mkdir(statistics_dir)
 
-        handle = tqdm(enumerate(os.listdir(os.path.join(predict_dir, 'pixel', 'rec'))))
+        handle = tqdm(enumerate(os.listdir(os.path.join(predict_dir, 'pixel', 'score'))))
         for i, file_name in handle:
             prefix = file_name.split('.')[0]
             each_statistics_dir = os.path.join(statistics_dir, prefix)

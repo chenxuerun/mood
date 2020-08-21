@@ -7,15 +7,15 @@ import numpy as np
 class FuncFactory:
 
     def getFunction(self, fn_name, *args):
-        if hasattr(self, fn_name):
-            return getattr(self, fn_name)
-        else:
-            create_fn_name = 'create_' + fn_name + '_fn'
-            if not hasattr(self, create_fn_name):
-                raise Exception(f'工厂无法创造函数：{fn_name}')
-            func = getattr(self, create_fn_name)(*args)
-            setattr(self, fn_name, func)
-            return func
+        # if hasattr(self, fn_name):
+        #     return getattr(self, fn_name)
+        # else:
+        create_fn_name = 'create_' + fn_name + '_fn'
+        if not hasattr(self, create_fn_name):
+            raise Exception(f'工厂无法创造函数：{fn_name}')
+        func = getattr(self, create_fn_name)(*args)
+        # setattr(self, fn_name, func)
+        return func
 
 
     # 加一些训练参数，args是额外要求的训练细节

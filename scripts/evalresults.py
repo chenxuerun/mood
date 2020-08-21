@@ -105,6 +105,8 @@ def eval_list(pred_file_list, label_file_list, mode="pixel"):
     length = len(pred_file_list)
     handle = tqdm(enumerate(zip(pred_file_list, label_file_list)))
     for i, (pred_path, label_path) in handle:
+        handle.set_description_str(f'eval-load-file: {i}/{length}')
+
         try:
             if mode == "pixel":
                 pred_list, label_list = process_file_pixelwise(pred_path, label_path)
@@ -114,14 +116,13 @@ def eval_list(pred_file_list, label_file_list, mode="pixel"):
                 pred_list, label_list = []
             pred_vals.append(pred_list)
             label_vals.append(label_list)
-
-            handle.set_description_str(f'eval-load-file: {i+1}/{length}')
         except Exception:
             print(f"Smth went fundamentally wrong with {pred_path}")
 
     label_vals = np.concatenate(label_vals, axis=0)
     pred_vals = np.concatenate(pred_vals, axis=0)
     # pred_vals = np.zeros_like(label_vals)
+
     return metrics.average_precision_score(label_vals, pred_vals)
 
 

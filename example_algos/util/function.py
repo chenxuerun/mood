@@ -65,17 +65,42 @@ def clip_image(input_folder, output_folder):
                 ni_save(os.path.join(output_folder, folder_name, f_name), ni_data, ni_affine)
 
 
-def template_statistics(test_dir):
+def fuse_score(fuse_pixel_score_dir, fuse_sample_score_dir, *pixel_score_dirs):
+    from util.constant import AFFINE
+    
+    f_names = os.listdir(pixel_score_dirs[0])
+    length = len(f_names)
+    handle = tqdm(enumerate(f_names))
+    for i, f_name in handle:
+        handle.set_description_str(f'{i}/{length}')
+
+        pixel_scores = []
+        for pixel_score_dir in pixel_score_dirs:
+            score, _ = ni_load(os.path.join(pixel_score_dir, f_name))
+            pixel_scores.append(score)
+
+        pixel_score = np.max(pixel_scores, axis=0)
+        ni_save(os.path.join(fuse_pixel_score_dir, f_name), pixel_score, AFFINE)
+
+        sample_score = get_sample_score(pixel_score)
+        with open(os.path.join(fuse_sample_score_dir, f_name + '.txt'), 'w') as target_file:
+            target_file.write(str(sample_score))
+
+
+def statistics(test_dir, algo_name):
+    print('statistics')
     import matplotlib.pyplot as plt
 
-    predict_dir = os.path.join(test_dir, 'eval', 'temmat', 'predict')
+    predict_dir = os.path.join(test_dir, 'eval', algo_name, 'predict')
     assert os.path.exists(predict_dir), '先预测，再统计'
     statistics_dir = os.path.join(predict_dir, 'statistics')
     if not os.path.exists(statistics_dir):
         os.mkdir(statistics_dir)
 
-    handle = tqdm(enumerate(os.listdir(os.path.join(predict_dir, 'pixel', 'rec'))))
+    handle = tqdm(enumerate(os.listdir(os.path.join(predict_dir, 'pixel', 'score'))))
     for i, file_name in handle:
+        handle.set_description_str(f'{i}/{len(handle)}')
+
         prefix = file_name.split('.')[0]
         each_statistics_dir = os.path.join(statistics_dir, prefix)
         if not os.path.exists(each_statistics_dir): os.mkdir(each_statistics_dir)
@@ -116,6 +141,27 @@ def template_statistics(test_dir):
         max_score = large_score[0]
         img = score / max_score
         ni_save(os.path.join(each_statistics_dir, 'normalized'), img, ni_aff)
+
+
+def fuse_ex(test_dir, *algo_names):
+    from scripts.evalresults import eval_dir
+    score_dir, pred_pixel_dir, pred_sample_dir = init_validation_dir('fuse', test_dir)
+    with open(os.path.join(test_dir, 'eval', 'fuse', 'readme'), 'w') as target_file:
+        target_file.write(str(algo_names))
+
+    pred_pixel_dir = os.path.join(pred_pixel_dir, 'score')
+    if not os.path.exists(pred_pixel_dir): os.mkdir(pred_pixel_dir)
+
+    pixel_score_dirs = []
+    for algo_name in algo_names:
+        pixel_score_dirs.append(os.path.join(test_dir, 'eval', algo_name, 'predict', 'pixel', 'score'))
+    
+    print('predict')
+    fuse_score(pred_pixel_dir, pred_sample_dir, *pixel_score_dirs)
+
+    print('validate')
+    eval_dir(pred_dir=pred_pixel_dir, label_dir=os.path.join(test_dir, 'label', 'pixel'), mode='pixel', save_file=os.path.join(score_dir, 'pixel'))
+    eval_dir(pred_dir=pred_sample_dir, label_dir=os.path.join(test_dir, 'label', 'sample'), mode='sample', save_file=os.path.join(score_dir, 'sample'))
 
 
 def template_match_ex(test_dir): # 读进来的是nii.gz
@@ -200,5 +246,5 @@ def init_validation_dir(algo_name, dataset_dir):
 
 if __name__ == '__main__':
     from util.configure import TEST_DATASET_DIR
-    # template_match_ex(test_dir=TEST_DATASET_DIR)
-    template_statistics(test_dir=TEST_DATASET_DIR)
+    fuse_ex(TEST_DATASET_DIR, 'unet_mask', 'zcae_origin')
+    statistics(test_dir=TEST_DATASET_DIR, algo_name='fuse')

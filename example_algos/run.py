@@ -33,7 +33,7 @@ def main():
 
     af = AlgoFactory()
     algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe, other=other)
-    algo.run()
+    algo.run(algo)
 
 
 def auto_predict():
@@ -56,7 +56,7 @@ def auto_predict():
         basic_kws['log_dir'] = log_dir
         basic_kws['load_path'] = os.path.join(log_dir, dir_name, 'checkpoint')
         algo = af.getAlgo(run_mode='predict', basic_kws=basic_kws)
-        algo.run(num=20, return_rec=False)
+        algo.run(algo, num=20, return_rec=False)
 
 
 def auto_validate():
@@ -68,7 +68,7 @@ def auto_validate():
         print(f'dir_name: {dir_name}')
         algo = af.getAlgo(run_mode='validate')
         algo.name = dir_name
-        algo.run()
+        algo.run(algo)
 
 
 def auto_statistics():
@@ -80,7 +80,7 @@ def auto_statistics():
         print(f'dir_name: {dir_name}')
         algo = af.getAlgo(run_mode='statistics')
         algo.name = dir_name
-        algo.run()
+        algo.run(algo)
 
 
 if __name__ == '__main__':

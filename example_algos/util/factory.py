@@ -31,7 +31,7 @@ class AlgoFactory:
 
         if run_mode in ['validate', 'statistics']:
             algo = Algorithm(basic_kws=basic_kws, train_kws={'model_type': model_type})
-            setattr(Algorithm, 'run', self.FF.getFunction('run', run_mode))
+            setattr(algo, 'run', self.FF.getFunction('run', run_mode))
             return algo
 
         if not basic_kws['load']:
@@ -87,7 +87,7 @@ class AlgoFactory:
 
         # 为algo设置函数
         dataset_functions, algo_functions = self.getFunctions(train_kws)
-        setattr(Algorithm, 'run', self.FF.getFunction('run', run_mode))
+        setattr(algo, 'run', self.FF.getFunction('run', run_mode))
         algo.__setattr__('dataset_functions', dataset_functions)
         algo.__dict__.update(algo_functions)
 
