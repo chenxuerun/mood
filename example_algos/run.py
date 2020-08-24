@@ -11,8 +11,8 @@ from example_algos.util.factory import AlgoFactory
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--run_mode', type=str, default='predict')
-    parser.add_argument('--model_type', type=str, default=None)
-    parser.add_argument('--recipe', type=str, default=None)
+    parser.add_argument('--model_type', type=str, default='unet')
+    parser.add_argument('--recipe', type=str, default='res')
     parser.add_argument('--other', type=str, nargs='+')
     args = parser.parse_args()
 
@@ -22,15 +22,16 @@ def main():
     other = args.other
     assert run_mode in ['train', 'predict', 'validate', 'statistics']
     assert model_type in ['unet', 'zcae', 'zunet', None]
-    assert recipe in ['origin', 'predict', 'rotate', 'split_rotate', 'mask', None]
+    assert recipe in ['origin', 'predict', 'rotate', 'split_rotate', 'mask', 'res', None]
     if other != None:
         if type(other) == str:
-            assert other in ['resolution', 'change_loss']
+            assert other in ['change_loss']
         elif type(recipe) == list:
             for x in other:
-                assert x in ['resolution', 'change_loss']        
+                assert x in ['change_loss']        
     else: other = []
 
+    # 一个af对应一个algo，若使用多个algo则用多个af创造。
     af = AlgoFactory()
     algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe, other=other)
     algo.run(algo)

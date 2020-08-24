@@ -31,7 +31,7 @@ class Algorithm:
             pin_memory=True,
             batch_size=self.batch_size,
             mode="train",
-            target_size=self.target_size,
+            # target_size=self.target_size,
             drop_last=True,
             n_items=n_items,
             functions_dict=self.dataset_functions,
@@ -42,7 +42,7 @@ class Algorithm:
             pin_memory=True,
             batch_size=self.batch_size,
             mode="val",
-            target_size=self.target_size,
+            # target_size=self.target_size,
             drop_last=True,
             n_items=n_items,
             functions_dict=self.dataset_functions,
@@ -129,7 +129,7 @@ class Algorithm:
         if has_num: num = kwargs['num']
         return_rec = kwargs['return_rec'] if 'return_rec' in kwargs.keys() else False
 
-        # return_rec = True
+        return_rec = True
 
         self.model.eval()
         for i, f_name in handle:
@@ -182,8 +182,12 @@ class Algorithm:
         if not os.path.exists(statistics_dir):
             os.mkdir(statistics_dir)
 
-        handle = tqdm(enumerate(os.listdir(os.path.join(predict_dir, 'pixel', 'score'))))
+        file_names = os.path.join(predict_dir, 'pixel', 'score')
+        length = len(file_names)
+        handle = tqdm(enumerate(os.listdir(file_names)))
         for i, file_name in handle:
+            handle.set_description_str(f'{i}/{length}')
+
             prefix = file_name.split('.')[0]
             each_statistics_dir = os.path.join(statistics_dir, prefix)
             if not os.path.exists(each_statistics_dir): os.mkdir(each_statistics_dir)
@@ -230,27 +234,17 @@ class Algorithm:
         score = None;   ori = None; rec = None
         np_array = self.transpose(np_array)
 
-        ori_shape = np_array.shape
-        # to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
-        from_transforms = torch.nn.Upsample((ori_shape[1], ori_shape[2]), mode="bilinear")
+        data_tensor = torch.from_numpy(np_array).float().cuda()
 
-        data_tensor = torch.from_numpy(np_array).float()
-        # label_tensor = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")(data_tensor[None])[0].cuda() # resolution
-        label_tensor = None
-        data_tensor = self.to_transforms(data_tensor[None])[0].cuda()
-
-        score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor, label_tensor=label_tensor)
+        score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor)
 
         if return_score:
-            score_tensor = from_transforms(score_tensor[None])[0]
             score = score_tensor.detach().cpu().numpy()
             score = self.revert_transpose(score)
         if return_ori:
-            data_tensor = from_transforms(data_tensor[None])[0]
             ori = data_tensor.detach().numpy()
             ori = self.revert_transpose(ori)
         if return_rec:
-            rec_tensor = from_transforms(rec_tensor[None])[0]
             rec = rec_tensor.detach().cpu().numpy()
             rec = self.revert_transpose(rec)
 
@@ -258,11 +252,7 @@ class Algorithm:
 
 
     def score_sample_2d(self, np_array):
-        # to_transforms = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")
-        data_tensor = torch.from_numpy(np_array).float()
-        # label_tensor = torch.nn.Upsample((self.target_size, self.target_size), mode="bilinear")(data_tensor[None])[0].cuda() # resolution
-        label_tensor = None
-        data_tensor = self.to_transforms(data_tensor[None])[0].cuda()
+        data_tensor = torch.from_numpy(np_array).float().cuda()
 
-        sample_score = self.get_sample_score(self.model, data_tensor, label_tensor=label_tensor)
+        sample_score = self.get_sample_score(self.model, data_tensor)
         return sample_score

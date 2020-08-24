@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 
-# DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 # DEVICE = torch.device('cpu')
 
 SAVE_PATH = '/home/cxr/Downloads'

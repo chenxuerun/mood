@@ -5,10 +5,10 @@ from .constant import *
 
 
 TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_train'
-TEST_DATASET_NAME = 'validate'
+TEST_DATASET_NAME = 'brain_toy'
 TEST_DATASET_DIR = os.path.join('/home/cxr/Program_Datas/mood', TEST_DATASET_NAME)
 # TEST_DATASET_DIR = '/home/cxr/toy'
-LOAD_MODEL_NAME = 'zcae_origin'
+LOAD_MODEL_NAME = 'unet_origin_resolution'
 
 # keywords
 BASIC_KWS = {
@@ -17,7 +17,7 @@ BASIC_KWS = {
     'train_data_dir': os.path.join(TRAIN_DATASET_DIR, 'preprocessed'),
     'test_dir': TEST_DATASET_DIR,
 
-    'load': False,
+    'load': True,
     'load_path': os.path.join(TRAIN_DATASET_DIR, 'log', LOAD_MODEL_NAME, 'checkpoint'),
     'name': LOAD_MODEL_NAME,
 }
@@ -28,7 +28,7 @@ TRAIN_KWS = {
     'n_epochs': 10,
     'lr': 1e-4,
     'batch_size': 16,
-    'target_size': 128,
+    'origin_size': 256,
     'select_dim': 0,
 }
 
@@ -36,7 +36,8 @@ OTHER_KWS = {
     'see_slice': 5,
     'data_augment_prob': 0.8,
     'mask_square_size': 15,
-    'resolution': 64,
+    'res_size': 64,
+    'minus_low': False,
     'loss_type': '7loss',
 }
 

@@ -53,7 +53,7 @@ def get_numpy2d_dataset(
     pin_memory=False,
     num_processes=1,
     drop_last=False,
-    target_size=128,
+    # target_size=128,
     file_pattern="*data.npy",
     do_reshuffle=True,
     slice_offset=0,
@@ -213,6 +213,7 @@ class Numpy2dDataSet(Dataset):
             base_dir, mode=mode, pattern=file_pattern, slice_offset=slice_offset, caching=caching
         )
         # self.transforms = transforms
+        self.transforms = ToTensor()
 
         self.data_len = len(self.items)
 

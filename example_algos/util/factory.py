@@ -56,8 +56,8 @@ class AlgoFactory:
 
         algo = Algorithm(basic_kws=basic_kws, train_kws=train_kws)
 
-        if model_type == 'temmat':
-            return algo
+        # if model_type == 'temmat':
+        #     return algo
 
         # 为algo加入模型，在这里都是字符串，后面可能要转成对象，in_channels也在后面加
         if not basic_kws['load']:
@@ -125,7 +125,7 @@ class AlgoFactory:
             'get_data_slice_num': None,
             'get_slices': None,
             'get_slice_data': None,
-            'transforms': None,
+            # 'transforms': None,
         }
         algo_functions = {
             'calculate_loss': None,
@@ -134,7 +134,7 @@ class AlgoFactory:
             'revert_transpose': None,
             'get_pixel_score': None,
             'get_sample_score': None,
-            'to_transforms': None,
+            # 'to_transforms': None,
         }
         
         for fn_name in dataset_functions.keys():

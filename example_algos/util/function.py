@@ -97,9 +97,11 @@ def statistics(test_dir, algo_name):
     if not os.path.exists(statistics_dir):
         os.mkdir(statistics_dir)
 
-    handle = tqdm(enumerate(os.listdir(os.path.join(predict_dir, 'pixel', 'score'))))
+    file_names = os.listdir(os.path.join(predict_dir, 'pixel', 'score'))
+    length = len(file_names)
+    handle = tqdm(enumerate(file_names))
     for i, file_name in handle:
-        handle.set_description_str(f'{i}/{len(handle)}')
+        handle.set_description_str(f'{i}/{length}')
 
         prefix = file_name.split('.')[0]
         each_statistics_dir = os.path.join(statistics_dir, prefix)
@@ -246,5 +248,5 @@ def init_validation_dir(algo_name, dataset_dir):
 
 if __name__ == '__main__':
     from util.configure import TEST_DATASET_DIR
-    fuse_ex(TEST_DATASET_DIR, 'unet_mask', 'zcae_origin')
+    # fuse_ex(TEST_DATASET_DIR, 'unet_mask', 'zcae_origin')
     statistics(test_dir=TEST_DATASET_DIR, algo_name='fuse')
