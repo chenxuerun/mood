@@ -101,9 +101,9 @@ class Algorithm:
         # tensorboard记录
         self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
 
-        # if self.logger is not None:
-            # self.tx.l[0].show_image_grid(inpt, name="Input", image_args={"normalize": True})
-            # self.tx.l[0].show_image_grid(inpt_rec, name="Reconstruction", image_args={"normalize": True})
+        if self.logger is not None:
+            self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
+            self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
 
         return loss
 
@@ -132,7 +132,7 @@ class Algorithm:
         if has_num: num = kwargs['num']
         return_rec = kwargs['return_rec'] if 'return_rec' in kwargs.keys() else False
 
-        return_rec = True
+        # return_rec = True
 
         self.model.eval()
         for i, f_name in handle:
