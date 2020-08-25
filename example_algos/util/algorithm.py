@@ -57,7 +57,7 @@ class Algorithm:
             data_loader_ = tqdm(enumerate(train_loader))
             for batch_idx, data in data_loader_:
                 # data = data.cuda()
-                loss = self.train_model(data)
+                loss, out = self.train_model(data)
 
                 train_loss += loss.item()
                 if batch_idx % self.print_every_iter == 0:
@@ -69,6 +69,13 @@ class Algorithm:
                     data_loader_.set_description_str(status_str)
 
                     cnt = epoch * len(train_loader) + batch_idx
+
+                    # tensorboard记录
+                    self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
+
+                    if self.logger is not None:
+                        self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
+                        self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
 
             print(f"====> Epoch: {epoch} Average loss: {train_loss / len(train_loader):.6f}")
 
@@ -98,14 +105,7 @@ class Algorithm:
         loss.backward()
         self.optimizer.step()
 
-        # tensorboard记录
-        self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
-
-        if self.logger is not None:
-            self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
-            self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
-
-        return loss
+        return loss, out
 
 
     def eval_model(self, data):
@@ -231,6 +231,11 @@ class Algorithm:
             max_score = large_score[0]
             img = score / max_score
             ni_save(os.path.join(each_statistics_dir, 'normalized'), img, ni_aff)
+
+            img = score
+            img[:abnormal_area_score] = 1
+            img[abnormal_area_score:] = 0
+            ni_save(os.path.join(each_statistics_dir, 'large'), img, ni_aff)
 
 
     def score_pixel_2d(self, np_array, return_score=True, return_ori=False, return_rec=False):
