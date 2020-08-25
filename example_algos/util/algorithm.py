@@ -69,11 +69,6 @@ class Algorithm:
                     data_loader_.set_description_str(status_str)
 
                     cnt = epoch * len(train_loader) + batch_idx
-                    self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
-
-                    # if self.logger is not None:
-                        # self.tx.l[0].show_image_grid(inpt, name="Input", image_args={"normalize": True})
-                        # self.tx.l[0].show_image_grid(inpt_rec, name="Reconstruction", image_args={"normalize": True})
 
             print(f"====> Epoch: {epoch} Average loss: {train_loss / len(train_loader):.6f}")
 
@@ -97,11 +92,19 @@ class Algorithm:
 
     def train_model(self, data):
         input, label = self.get_input_label(data)
-        loss = self.calculate_loss(self.model, input, label)
+        loss, out = self.calculate_loss(self.model, input, label)
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        # tensorboard记录
+        self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
+
+        # if self.logger is not None:
+            # self.tx.l[0].show_image_grid(inpt, name="Input", image_args={"normalize": True})
+            # self.tx.l[0].show_image_grid(inpt_rec, name="Reconstruction", image_args={"normalize": True})
+
         return loss
 
 

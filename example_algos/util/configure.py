@@ -17,7 +17,7 @@ BASIC_KWS = {
     'train_data_dir': os.path.join(TRAIN_DATASET_DIR, 'preprocessed'),
     'test_dir': TEST_DATASET_DIR,
 
-    'load': True,
+    'load': False,
     'load_path': os.path.join(TRAIN_DATASET_DIR, 'log', LOAD_MODEL_NAME, 'checkpoint'),
     'name': LOAD_MODEL_NAME,
 }
@@ -25,7 +25,7 @@ BASIC_KWS = {
 # 只包含了公共的参数，不同recipe对应的参数要手动添加
 TRAIN_KWS = {
     'print_every_iter': 100,
-    'n_epochs': 10,
+    'n_epochs': 5,
     'lr': 1e-4,
     'batch_size': 16,
     'origin_size': 256,
@@ -37,7 +37,7 @@ OTHER_KWS = {
     'data_augment_prob': 0.8,
     'mask_square_size': 15,
     'res_size': 64,
-    'minus_low': False,
+    'minus_low': True,
     'loss_type': '7loss',
 }
 

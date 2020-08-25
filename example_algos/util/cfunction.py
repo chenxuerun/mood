@@ -190,7 +190,7 @@ class FuncFactory:
             def calculate_loss(model, input, label):
                 out = model(input)
                 loss = torch.mean(torch.pow(out - label, 2))
-                return loss
+                return loss, out
         
         return calculate_loss
 
@@ -218,7 +218,7 @@ class FuncFactory:
                 else:
                     input = label
                 return input, label
-        elif recipe == 'rotate':
+        elif recipe == 'rot':
             def get_input_label(data):
                 label = data
                 input = torch.rot90(label, 1, [2, 3])

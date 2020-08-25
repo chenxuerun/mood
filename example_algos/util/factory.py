@@ -3,7 +3,7 @@ import os
 import json
 
 import torch
-torch.cuda.set_device(1)
+torch.cuda.set_device(0)
 
 from trixi.logger import PytorchExperimentLogger
 
