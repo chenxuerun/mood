@@ -73,9 +73,9 @@ class Algorithm:
                     # tensorboard记录
                     self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
 
-                    if self.logger is not None:
-                        self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
-                        self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
+                    # if self.logger is not None:
+                    #     self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
+                    #     self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
 
             print(f"====> Epoch: {epoch} Average loss: {train_loss / len(train_loader):.6f}")
 
@@ -111,7 +111,7 @@ class Algorithm:
     def eval_model(self, data):
         with torch.no_grad():
             input, label = self.get_input_label(data)
-            loss = self.calculate_loss(self.model, input, label)
+            loss, _ = self.calculate_loss(self.model, input, label)
         return loss
 
 
