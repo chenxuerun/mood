@@ -8,7 +8,7 @@ TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_train'
 TEST_DATASET_NAME = 'validate'
 TEST_DATASET_DIR = os.path.join('/home/cxr/Program_Datas/mood', TEST_DATASET_NAME)
 # TEST_DATASET_DIR = '/home/cxr/toy'
-LOAD_MODEL_NAME = 'unet_rot'
+LOAD_MODEL_NAME = 'unet_res_high-5'
 
 # keywords
 BASIC_KWS = {
@@ -25,7 +25,7 @@ BASIC_KWS = {
 # 只包含了公共的参数，不同recipe对应的参数要手动添加
 TRAIN_KWS = {
     'print_every_iter': 100,
-    'n_epochs': 5,
+    'n_epochs': 20,
     'lr': 1e-4,
     'batch_size': 16,
     'origin_size': 256,
@@ -36,8 +36,8 @@ OTHER_KWS = {
     'see_slice': 5,
     'data_augment_prob': 1,
     'mask_square_size': 15,
-    'res_size': 64,
-    'minus_low': True,
+    'res_size': 32,
+    'minus_low': False,
     'loss_type': '7loss',
 }
 

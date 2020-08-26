@@ -15,7 +15,9 @@ class AlgoFactory:
     def __init__(self):
         self.FF = FuncFactory()
 
-    def getAlgo(self, run_mode, model_type=None, recipe=None, other=[], **kwargs):
+    def getAlgo(self, run_mode, model_type=None, recipe=None, other=[], singleton=True, **kwargs):
+        self.FF.singleton = singleton
+
         # 创建基本的algo
         # basic_kws永远是手动配置的，而其它两个只需要第一次手动配置，以后就会在路径中读取
 

@@ -31,25 +31,62 @@ def transform_dict_data(origin_dict, map):
             origin_dict[key] = map[value]
 
 
-def save_images(pred_dir, f_name, ni_aff, score=None, ori=None, rec=None):
+def cv2_canny(np_array, low, high):
+    from cv2 import Canny
+    low = int(low * 256)
+    high = int(high * 256)
+    temp = np_array * 256
+    temp = temp.astype(np.uint8)
+    temp = Canny(temp, low, high)
+    np_array = temp.astype(np.float) / 256
+    return np_array
+
+
+def canny_ex():
+    from cv2 import imwrite
+    save_path = '/home/cxr/Downloads'
+    # path = '/home/cxr/Program_Datas/mood/validate/data/c4_00020_0_1.nii.gz'
+    # path = '/home/cxr/Program_Datas/mood/brain_toy/data/toy_1.nii.gz'
+    path = '/home/cxr/Program_Datas/mood/validate/data/n2_00002_flair_13.nii.gz'
+    np_array, np_aff = ni_load(path)
+    np_array = np_array[175]
+
+    path = os.path.join(save_path, 'origin.png')
+    img = (np_array * 256).astype(np.uint8)
+    imwrite(path, img)
+
+    highs = np.arange(0, 1, step=0.05)
+    lows = np.arange(0, 1, step=0.05) 
+    for low in lows:
+        for high in highs:
+            if high <= low: continue
+            file_name = f'{low:.2f}-{high:.2f}.png'
+            path = os.path.join(save_path, file_name)
+            img = cv2_canny(np_array, low, high)
+            img = (img * 256).astype(np.uint8)
+            imwrite(path, img)
+
+
+def save_images(pred_dir, f_name, ni_aff, result):
     ni_aff = ni_aff.astype(np.float64)
-    if score is not None:
+
+    if 'score' in result.keys():
         score_dir = os.path.join(pred_dir, 'score')
         if not os.path.exists(score_dir): os.mkdir(score_dir)
-        score = score.astype(np.float64)
+        score = result['score'].astype(np.float64)
         ni_save(os.path.join(score_dir, f_name), score, ni_aff)
 
-    if ori is not None:
-        ori_dir = os.path.join(pred_dir, 'ori')
-        if not os.path.exists(ori_dir): os.mkdir(ori_dir)
-        ori = ori.astype(np.float64)
-        ni_save(os.path.join(ori_dir, f_name), ori, ni_aff)
-
-    if rec is not None:
+    if 'rec' in result.keys():
         rec_dir = os.path.join(pred_dir, 'rec')
         if not os.path.exists(rec_dir): os.mkdir(rec_dir)
-        rec = rec.astype(np.float64)
+        rec = result['rec'].astype(np.float64)
         ni_save(os.path.join(rec_dir, f_name), rec, ni_aff)
+
+    if 'input' in result.keys():
+        input_dir = os.path.join(pred_dir, 'input')
+        if not os.path.exists(input_dir): os.mkdir(input_dir)
+        input = result['input'].astype(np.float64)
+        ni_save(os.path.join(input_dir, f_name), input, ni_aff)
 
 
 def clip_image(input_folder, output_folder):
@@ -247,6 +284,7 @@ def init_validation_dir(algo_name, dataset_dir):
 
 
 if __name__ == '__main__':
-    from util.configure import TEST_DATASET_DIR
+    # from util.configure import TEST_DATASET_DIR
     # fuse_ex(TEST_DATASET_DIR, 'unet_mask', 'zcae_origin')
-    statistics(test_dir=TEST_DATASET_DIR, algo_name='fuse')
+    # statistics(test_dir=TEST_DATASET_DIR, algo_name='fuse')
+    canny_ex()

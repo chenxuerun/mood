@@ -10,9 +10,9 @@ from example_algos.util.factory import AlgoFactory
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_mode', type=str, default='train')
-    parser.add_argument('--model_type', type=str, default='unet')
-    parser.add_argument('--recipe', type=str, default='res')
+    parser.add_argument('--run_mode', type=str, default='predict')
+    parser.add_argument('--model_type', type=str, default=None)
+    parser.add_argument('--recipe', type=str, default=None)
     parser.add_argument('--other', type=str, nargs='+')
     args = parser.parse_args()
 
@@ -34,6 +34,7 @@ def main():
     # 一个af对应一个algo，若使用多个algo则用多个af创造。
     af = AlgoFactory()
     algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe, other=other)
+    # algo.run(algo, return_rec=True, num=5)
     algo.run(algo)
 
 
@@ -56,7 +57,7 @@ def auto_predict():
         basic_kws['name'] = dir_name
         basic_kws['log_dir'] = log_dir
         basic_kws['load_path'] = os.path.join(log_dir, dir_name, 'checkpoint')
-        algo = af.getAlgo(run_mode='predict', basic_kws=basic_kws)
+        algo = af.getAlgo(run_mode='predict', basic_kws=basic_kws, singleton=False)
         algo.run(algo, num=20, return_rec=False)
 
 
@@ -67,7 +68,7 @@ def auto_validate():
     af = AlgoFactory()
     for dir_name in os.listdir(test_dir):
         print(f'dir_name: {dir_name}')
-        algo = af.getAlgo(run_mode='validate')
+        algo = af.getAlgo(run_mode='validate', singleton=False)
         algo.name = dir_name
         algo.run(algo)
 
@@ -79,7 +80,7 @@ def auto_statistics():
     af = AlgoFactory()
     for dir_name in os.listdir(test_dir):
         print(f'dir_name: {dir_name}')
-        algo = af.getAlgo(run_mode='statistics')
+        algo = af.getAlgo(run_mode='statistics', singleton=False)
         algo.name = dir_name
         algo.run(algo)
 

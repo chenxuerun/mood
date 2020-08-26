@@ -62,7 +62,7 @@ class Algorithm:
                 train_loss += loss.item()
                 if batch_idx % self.print_every_iter == 0:
                     status_str = (
-                        f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)} "
+                        f"Train Epoch: {epoch + 1} [{batch_idx}/{len(train_loader)} "
                         f" ({100.0 * batch_idx / len(train_loader):.0f}%)] Loss: "
                         f"{loss.item():.6f}"
                     )
@@ -73,11 +73,7 @@ class Algorithm:
                     # tensorboard记录
                     self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
 
-                    # if self.logger is not None:
-                    #     self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
-                    #     self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
-
-            print(f"====> Epoch: {epoch} Average loss: {train_loss / len(train_loader):.6f}")
+            print(f"====> Epoch: {epoch + 1} Average loss: {train_loss / len(train_loader):.6f}")
 
             # validate
             self.model.eval()
@@ -105,6 +101,10 @@ class Algorithm:
         loss.backward()
         self.optimizer.step()
 
+        # if self.logger is not None:
+        #     self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
+        #     self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
+
         return loss, out
 
 
@@ -125,34 +125,37 @@ class Algorithm:
         test_dir = os.path.join(test_dir, 'data')
 
         test_dir_list = os.listdir(test_dir)
-        length = len(test_dir_list)
         handle = tqdm(enumerate(test_dir_list))
 
-        has_num = 'num' in kwargs.keys()
-        if has_num: num = kwargs['num']
-        return_rec = kwargs['return_rec'] if 'return_rec' in kwargs.keys() else False
+        if 'num' in kwargs.keys():
+            num = kwargs['num']
+            kwargs.pop('num')
+        else: num = None
+        length = num if num is not None else len(test_dir_list)
 
         # return_rec = True
 
         self.model.eval()
         for i, f_name in handle:
-            # if not f_name.startswith('n2'): continue
+            handle.set_description_str(f'predict: {i}/{length}')
 
-            if has_num:
+            # if not f_name.startswith('n2'): continue
+            if num is not None:
                 if i == num: break
+
             ni_file_path = os.path.join(test_dir, f_name)
             ni_data, ni_aff = ni_load(ni_file_path)
 
             # pixel
-            result = self.score_pixel_2d(ni_data, return_rec=return_rec)
-            save_images(pred_pixel_dir, f_name, ni_aff, score=result['score'], ori=result['ori'], rec=result['rec'])
+            result = self.score_pixel_2d(ni_data, **kwargs)
+            save_images(pred_pixel_dir, f_name, ni_aff, result)
 
             # sample
-            sample_score = self.score_sample_2d(ni_data)
-            with open(os.path.join(pred_sample_dir, f_name + ".txt"), "w") as target_file:
-                target_file.write(str(sample_score))
-
-            handle.set_description_str(f'predict: {i+1}/{length}')
+            if 'sp' in result.keys():
+                # sample_score = self.score_sample_2d(ni_data)
+                sample_score = result['sp']
+                with open(os.path.join(pred_sample_dir, f_name + ".txt"), "w") as target_file:
+                    target_file.write(str(sample_score))
 
 
     def validate(self):
@@ -185,9 +188,9 @@ class Algorithm:
         if not os.path.exists(statistics_dir):
             os.mkdir(statistics_dir)
 
-        file_names = os.path.join(predict_dir, 'pixel', 'score')
+        file_names = os.listdir(os.path.join(predict_dir, 'pixel', 'score'))
         length = len(file_names)
-        handle = tqdm(enumerate(os.listdir(file_names)))
+        handle = tqdm(enumerate(file_names))
         for i, file_name in handle:
             handle.set_description_str(f'{i}/{length}')
 
@@ -233,30 +236,26 @@ class Algorithm:
             ni_save(os.path.join(each_statistics_dir, 'normalized'), img, ni_aff)
 
             img = score
-            img[:abnormal_area_score] = 1
-            img[abnormal_area_score:] = 0
-            ni_save(os.path.join(each_statistics_dir, 'large'), img, ni_aff)
+            threshold = ordered_flatten_score[abnormal_number]
+            img[img >= threshold] = 1
+            img[img < threshold] = 0
+            ni_save(os.path.join(each_statistics_dir, 'binary'), img, ni_aff)
 
 
-    def score_pixel_2d(self, np_array, return_score=True, return_ori=False, return_rec=False):
-        score = None;   ori = None; rec = None
+    def score_pixel_2d(self, np_array, **kwargs):
         np_array = self.transpose(np_array)
-
         data_tensor = torch.from_numpy(np_array).float().cuda()
 
-        score_tensor, rec_tensor = self.get_pixel_score(self.model, data_tensor)
+        result  = self.get_pixel_score(self.model, data_tensor, **kwargs)
 
-        if return_score:
-            score = score_tensor.detach().cpu().numpy()
-            score = self.revert_transpose(score)
-        if return_ori:
-            ori = data_tensor.detach().numpy()
-            ori = self.revert_transpose(ori)
-        if return_rec:
-            rec = rec_tensor.detach().cpu().numpy()
-            rec = self.revert_transpose(rec)
+        for key in result.keys():
+            if key == 'sp': continue
+            tensor = result[key]
+            array = tensor.detach().cpu().numpy()
+            array = self.revert_transpose(array)
+            result[key] = array
 
-        return {'score': score, 'ori': ori, 'rec': rec}
+        return result
 
 
     def score_sample_2d(self, np_array):

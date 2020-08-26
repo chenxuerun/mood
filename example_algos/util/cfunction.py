@@ -6,8 +6,11 @@ import numpy as np
 
 class FuncFactory:
 
+    def __init__(self):
+        self.singleton = True
+
     def getFunction(self, fn_name, *args):
-        if hasattr(self, fn_name):
+        if self.singleton and hasattr(self, fn_name):
             return getattr(self, fn_name)
         else:
             create_fn_name = 'create_' + fn_name + '_fn'
@@ -370,18 +373,33 @@ class FuncFactory:
         batch_size = train_kws['batch_size']
         get_input_label = self.getFunction('get_input_label', train_kws)
 
-        def get_pixel_score(model, data_tensor):
-            rec_tensor = torch.zeros_like(data_tensor)
-            loss_tensor = torch.zeros_like(data_tensor)
+        def get_pixel_score(model, data_tensor, return_score=True, return_rec=False, return_input=False, return_sample_score=False):
+            if return_score: score_tensor = torch.zeros_like(data_tensor)
+            if return_rec: rec_tensor = torch.zeros_like(data_tensor)
+            if return_input: input_tensor = torch.zeros_like(data_tensor)
+            if return_sample_score: slice_scores = []
+
             with torch.no_grad():
                 for i in range(ceil(data_tensor.shape[0] / batch_size)):
                     data = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
                     input, label = get_input_label(data)
                     out = model(input)
-                    loss= torch.pow(out - label, 2)
-                    rec_tensor[i * batch_size: (i+1) * batch_size] = out[:, 0, :, :]
-                    loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
-            return loss_tensor, rec_tensor
+                    loss = torch.pow(out - label, 2)
+                    
+                    if return_score: score_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
+                    if return_rec: rec_tensor[i * batch_size: (i+1) * batch_size] = out[:, 0, :, :]
+                    if return_input: input_tensor[i * batch_size: (i+1) * batch_size] = input[:, 0, :, :]
+                    if return_sample_score:
+                        loss = torch.mean(loss, dim=(1, 2, 3))
+                        slice_scores += loss.cpu().tolist()
+
+            result = {}
+            if return_score: result['score'] = score_tensor
+            if return_rec: result['rec'] = rec_tensor
+            if return_input: result['input'] = input_tensor
+            if return_sample_score: result['sp'] = np.max(slice_scores)
+
+            return result
 
         return get_pixel_score
 
