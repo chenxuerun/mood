@@ -258,15 +258,26 @@ class FuncFactory:
 
         elif recipe == 'canny':
             from .function import cv2_canny
+            low = train_kws['canny_th'][0]
+            high = train_kws['canny_th'][1]
+
+            if train_kws['canny_binary']:
+                def get_input(input, data):
+                    return input
+            else:
+                def get_input(input, data):
+                    return torch.where(input == 0, input, data)
+
             def get_input_label(data):
                 label = data
                 data = data.cpu().numpy()
                 data_slices = []
                 for data_slice in data:
                     data_slice = np.squeeze(data_slice)
-                    data_slice = cv2_canny(data_slice, 0.35, 0.5).unsqueeze(0)
+                    data_slice = np.expand_dims(cv2_canny(data_slice, low, high), axis=0)
                     data_slices.append(data_slice)
                 input = torch.from_numpy(np.array(data_slices)).cuda()
+                input = get_input(input, label)
                 return input, label
 
         else:

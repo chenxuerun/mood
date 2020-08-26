@@ -18,7 +18,7 @@ class Algorithm:
 
         log_dict = {}
         if self.logger is not None: log_dict = {0: self.logger}
-        self.tx = PytorchExperimentStub(name=self.model_type, base_dir=self.log_dir, config=None, loggers=log_dict,)
+        self.tx = PytorchExperimentStub(name=self.name, base_dir=self.log_dir, config=None, loggers=log_dict,)
 
 
     def train(self):

@@ -38,7 +38,7 @@ def cv2_canny(np_array, low, high):
     temp = np_array * 256
     temp = temp.astype(np.uint8)
     temp = Canny(temp, low, high)
-    np_array = temp.astype(np.float) / 256
+    np_array = temp.astype(np.float32) / 256
     return np_array
 
 
