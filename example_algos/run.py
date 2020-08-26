@@ -22,7 +22,7 @@ def main():
     other = args.other
     assert run_mode in ['train', 'predict', 'validate', 'statistics']
     assert model_type in ['unet', 'zcae', None]
-    assert recipe in ['rec',  'rot', 'mask', 'res', None]
+    assert recipe in ['rec',  'rot', 'mask', 'res', 'canny', None]
     if other != None:
         if type(other) == str:
             assert other in ['change_loss']

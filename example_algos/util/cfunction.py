@@ -41,6 +41,10 @@ class FuncFactory:
             def modify_train_kws_fn(train_kws):
                 train_kws['res_size'] = kws['res_size']
                 train_kws['minus_low'] = kws['minus_low']
+        elif 'canny' in args:
+            def modify_train_kws_fn(train_kws):
+                train_kws['canny_th'] = kws['canny_th']
+                train_kws['canny_binary'] = kws['canny_binary']
         else:
             def modify_train_kws_fn(train_kws): pass
         func_list.append(modify_train_kws_fn)
@@ -198,7 +202,7 @@ class FuncFactory:
         return calculate_loss
 
 
-    # data 是一个batch的数据，已经经过了resize处理。(16,1,f,f)
+    # data 是一个batch的数据，已经经过了resize处理。(16,1,f,f) gpu
     def create_get_input_label_fn(self, train_kws):
         recipe = train_kws['recipe']
 
@@ -207,6 +211,7 @@ class FuncFactory:
                 input = data[:, range(train_kws['see_slice']), :, :]
                 label = data[:, [train_kws['see_slice']], :, :]
                 return input, label
+
         elif recipe == 'mask':
             import random
             from .ce_noise import get_square_mask
@@ -221,11 +226,13 @@ class FuncFactory:
                 else:
                     input = label
                 return input, label
+
         elif recipe == 'rot':
             def get_input_label(data):
                 label = data
                 input = torch.rot90(label, 1, [2, 3])
                 return input, label
+
         elif recipe == 'split_rotate':
             def get_input_label(data):
                 a, b = data.chunk(2, 2)
@@ -234,6 +241,7 @@ class FuncFactory:
                 label = torch.cat((a1, a2, b1, b2), 0)
                 input = torch.rot90(label, 1, [2, 3])
                 return input, label
+
         elif recipe == 'res': # 与低分辨率相减
             to_transform = torch.nn.Upsample((train_kws['res_size'], train_kws['res_size']), mode="bilinear")
             from_transform = torch.nn.Upsample((train_kws['origin_size'], train_kws['origin_size']), mode="bilinear")
@@ -247,6 +255,20 @@ class FuncFactory:
                     label = data
                     input = from_transform(to_transform(data))
                     return input, label
+
+        elif recipe == 'canny':
+            from .function import cv2_canny
+            def get_input_label(data):
+                label = data
+                data = data.cpu().numpy()
+                data_slices = []
+                for data_slice in data:
+                    data_slice = np.squeeze(data_slice)
+                    data_slice = cv2_canny(data_slice, 0.35, 0.5).unsqueeze(0)
+                    data_slices.append(data_slice)
+                input = torch.from_numpy(np.array(data_slices)).cuda()
+                return input, label
+
         else:
             def get_input_label(data):
                 input = data

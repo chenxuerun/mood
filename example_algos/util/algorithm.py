@@ -57,7 +57,7 @@ class Algorithm:
             data_loader_ = tqdm(enumerate(train_loader))
             for batch_idx, data in data_loader_:
                 # data = data.cuda()
-                loss, out = self.train_model(data)
+                loss, input, out = self.train_model(data)
 
                 train_loss += loss.item()
                 if batch_idx % self.print_every_iter == 0:
@@ -72,6 +72,10 @@ class Algorithm:
 
                     # tensorboard记录
                     self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
+
+                    if self.logger is not None:
+                        self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
+                        self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
 
             print(f"====> Epoch: {epoch + 1} Average loss: {train_loss / len(train_loader):.6f}")
 
@@ -101,11 +105,7 @@ class Algorithm:
         loss.backward()
         self.optimizer.step()
 
-        # if self.logger is not None:
-        #     self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
-        #     self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
-
-        return loss, out
+        return loss, input, out
 
 
     def eval_model(self, data):
