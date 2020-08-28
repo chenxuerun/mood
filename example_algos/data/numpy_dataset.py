@@ -300,6 +300,8 @@ class Numpy2dDataSet(Dataset):
             load_files = npy_files[: int(0.9 * n_files)]
         elif mode == "val":
             load_files = npy_files[int(0.9 * n_files) :]
+        elif mode == "all":
+            load_files = npy_files
         else:
             load_files = []
 

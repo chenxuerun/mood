@@ -20,7 +20,6 @@ class Algorithm:
         if self.logger is not None: log_dict = {0: self.logger}
         self.tx = PytorchExperimentStub(name=self.name, base_dir=self.log_dir, config=None, loggers=log_dict,)
 
-
     def train(self):
         print('train')
 
@@ -30,25 +29,25 @@ class Algorithm:
             num_processes=self.batch_size,
             pin_memory=True,
             batch_size=self.batch_size,
-            mode="train",
+            mode="all",
             # target_size=self.target_size,
             drop_last=True,
             n_items=n_items,
             functions_dict=self.dataset_functions,
         )
-        val_loader = get_numpy2d_dataset(
-            base_dir=self.train_data_dir,
-            num_processes=self.batch_size // 2,
-            pin_memory=True,
-            batch_size=self.batch_size,
-            mode="val",
-            # target_size=self.target_size,
-            drop_last=True,
-            n_items=n_items,
-            functions_dict=self.dataset_functions,
-        )
+        # val_loader = get_numpy2d_dataset(
+        #     base_dir=self.train_data_dir,
+        #     num_processes=self.batch_size // 2,
+        #     pin_memory=True,
+        #     batch_size=self.batch_size,
+        #     mode="val",
+        #     # target_size=self.target_size,
+        #     drop_last=True,
+        #     n_items=n_items,
+        #     functions_dict=self.dataset_functions,
+        # )
         train_loader = DataPreFetcher(train_loader)
-        val_loader = DataPreFetcher(val_loader)
+        # val_loader = DataPreFetcher(val_loader)
 
         for epoch in range(self.n_epochs):
             self.model.train()
@@ -80,21 +79,40 @@ class Algorithm:
             print(f"====> Epoch: {epoch + 1} Average loss: {train_loss / len(train_loader):.6f}")
 
             # validate
-            self.model.eval()
+            # self.model.eval()
 
-            val_loss = 0
-            data_loader_ = tqdm(enumerate(val_loader))
-            data_loader_.set_description_str("Validating")
-            for _, data in data_loader_:
-                loss = self.eval_model(data)
-                val_loss += loss.item()
+            # val_loss = 0
+            # data_loader_ = tqdm(enumerate(val_loader))
+            # data_loader_.set_description_str("Validating")
+            # for _, data in data_loader_:
+            #     loss = self.eval_model(data)
+            #     val_loss += loss.item()
 
-            self.tx.add_result(
-                val_loss / len(val_loader), name="Val-Loss", tag="Losses", counter=(epoch + 1) * len(train_loader))
-            print(f"====> Epoch: {epoch} Validation loss: {val_loss / len(val_loader):.6f}")
+            # self.tx.add_result(
+            #     val_loss / len(val_loader), name="Val-Loss", tag="Losses", counter=(epoch + 1) * len(train_loader))
+            # print(f"====> Epoch: {epoch + 1} Validation loss: {val_loss / len(val_loader):.6f}")
 
-        self.tx.save_model(self.model, "model")
+            if (epoch + 1) % self.save_per_epoch == 0:
+                self.save_model(epoch)
+
         time.sleep(2)
+
+
+    def save_model(self, new_training_epoch):
+        save_epoch = self.total_epoch + new_training_epoch + 1
+        path = os.path.join(self.tx.elog.work_dir, 'checkpoint', f'{save_epoch}')
+        save_dict = {
+            'model': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'total_epoch': save_epoch,
+        }
+        torch.save(save_dict, path)
+
+    def load_model(self, path):
+        load_dict = torch.load(path)
+        self.model.load_state_dict(load_dict['model'])
+        self.optimizer.load_state_dict(load_dict['optimizer'])
+        self.total_epoch = load_dict['total_epoch']
 
 
     def train_model(self, data):
@@ -108,11 +126,11 @@ class Algorithm:
         return loss, input, out
 
 
-    def eval_model(self, data):
-        with torch.no_grad():
-            input, label = self.get_input_label(data)
-            loss, _ = self.calculate_loss(self.model, input, label)
-        return loss
+    # def eval_model(self, data):
+    #     with torch.no_grad():
+    #         input, label = self.get_input_label(data)
+    #         loss, _ = self.calculate_loss(self.model, input, label)
+    #     return loss
 
 
     def predict(self, **kwargs):

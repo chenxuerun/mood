@@ -20,41 +20,27 @@ class FuncFactory:
             setattr(self, fn_name, func)
             return func
 
-
     # 加一些训练参数，args是额外要求的训练细节
-    def create_modify_train_kws_fn(self, kws, *args):
-        func_list = []
-
-        if 'change_loss' in args:
-            def modify_train_kws_fn(train_kws):
-                train_kws['loss_type'] = kws['loss_type']
-            func_list.append(modify_train_kws_fn)
-
-        if 'predict' in args:
+    def create_modify_train_kws_fn(self, kws, recipe):
+        if recipe == 'predict':
             def modify_train_kws_fn(train_kws):
                 train_kws['see_slice'] = kws['see_slice']
-        elif 'mask' in args:
+        elif recipe == 'mask':
             def modify_train_kws_fn(train_kws):
                 train_kws['data_augment_prob'] = kws['data_augment_prob']
                 train_kws['mask_square_size'] = kws['mask_square_size']
-        elif 'res' in args:
+        elif recipe == 'res':
             def modify_train_kws_fn(train_kws):
                 train_kws['res_size'] = kws['res_size']
                 train_kws['minus_low'] = kws['minus_low']
-        elif 'canny' in args:
+        elif recipe == 'canny':
             def modify_train_kws_fn(train_kws):
                 train_kws['canny_th'] = kws['canny_th']
                 train_kws['canny_binary'] = kws['canny_binary']
         else:
             def modify_train_kws_fn(train_kws): pass
-        func_list.append(modify_train_kws_fn)
 
-        def modify_train_kws(train_kws):
-            for func in func_list:
-                func(train_kws)
-
-        return modify_train_kws
-
+        return modify_train_kws_fn
 
     # 根据训练参数的情况，修改模型参数
     def create_modify_model_kws_fn(self, train_kws):
@@ -178,27 +164,60 @@ class FuncFactory:
 
 
     def create_calculate_loss_fn(self, train_kws):
-        if 'loss_type' in train_kws.keys():
-            loss_type = train_kws['loss_type']
-            if loss_type == '7loss':
-                def  calculate_loss(model, input, label):
-                    d0, d1, d2, d3, d4, d5, d6  = model(input)
-                    loss0 = torch.mean(torch.pow(d0 - label, 2))
-                    loss1 = torch.mean(torch.pow(d1 - label, 2))
-                    loss2 = torch.mean(torch.pow(d2 - label, 2))
-                    loss3 = torch.mean(torch.pow(d3 - label, 2))
-                    loss4 = torch.mean(torch.pow(d4 - label, 2))
-                    loss5 = torch.mean(torch.pow(d5 - label, 2))
-                    loss6 = torch.mean(torch.pow(d6 - label, 2))
-                    loss = torch.mean(loss0, loss1, loss2, loss3, loss4, loss5, loss6)
-                    return loss
-            else: raise Exception(f'未知loss_type: {loss_type}')
-        else:
-            def calculate_loss(model, input, label):
+        loss_type = train_kws['loss_type']
+
+        func_list = []
+
+        if '7loss' in loss_type:
+            def  calculate_loss_fn(model, input, label):
+                d0, d1, d2, d3, d4, d5, d6  = model(input)
+                loss0 = torch.mean(torch.pow(d0 - label, 2))
+                loss1 = torch.mean(torch.pow(d1 - label, 2))
+                loss2 = torch.mean(torch.pow(d2 - label, 2))
+                loss3 = torch.mean(torch.pow(d3 - label, 2))
+                loss4 = torch.mean(torch.pow(d4 - label, 2))
+                loss5 = torch.mean(torch.pow(d5 - label, 2))
+                loss6 = torch.mean(torch.pow(d6 - label, 2))
+                loss = torch.mean(loss0, loss1, loss2, loss3, loss4, loss5, loss6)
+                return loss
+            func_list.append(calculate_loss_fn)
+
+        if 'l2' in loss_type:
+            def calculate_loss_fn(model, input, label):
                 out = model(input)
                 loss = torch.mean(torch.pow(out - label, 2))
                 return loss, out
-        
+            func_list.append(calculate_loss_fn)
+
+        if 'l1' in loss_type:
+            def calculate_loss_fn(model, input, label):
+                out = model(input)
+                loss = torch.mean(torch.abs(out - label))
+                return loss, out
+            func_list.append(calculate_loss_fn)
+
+        if 'vgg' in loss_type:
+            from example_algos.model.vgg import VGGLoss
+            vggloss = VGGLoss()
+            def calculate_loss_fn(model, input, label):
+                out = model(input)
+                loss = torch.mean(vggloss(
+                    torch.repeat_interleave(out, repeats=3, dim=1), torch.repeat_interleave(label, repeats=3, dim=1)
+                ))
+                return loss, out
+            func_list.append(calculate_loss_fn)
+            
+        # else: raise Exception(f'未知loss_type: {loss_type}')
+
+        def calculate_loss(model, input, label):
+            loss = 0
+            out = 0
+            for func in func_list:
+                temp = func(model, input, label)
+                loss += temp[0]
+                out += temp[1]
+            return loss, out
+
         return calculate_loss
 
 
@@ -406,7 +425,7 @@ class FuncFactory:
         batch_size = train_kws['batch_size']
         get_input_label = self.getFunction('get_input_label', train_kws)
 
-        def get_pixel_score(model, data_tensor, return_score=True, return_rec=False, return_input=False, return_sample_score=False):
+        def get_pixel_score(model, data_tensor, return_score=True, return_rec=False, return_input=False, return_sample_score=True):
             if return_score: score_tensor = torch.zeros_like(data_tensor)
             if return_rec: rec_tensor = torch.zeros_like(data_tensor)
             if return_input: input_tensor = torch.zeros_like(data_tensor)

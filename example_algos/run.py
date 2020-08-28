@@ -10,31 +10,25 @@ from example_algos.util.factory import AlgoFactory
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_mode', type=str, default='predict')
-    parser.add_argument('--model_type', type=str, default=None)
-    parser.add_argument('--recipe', type=str, default=None)
-    parser.add_argument('--other', type=str, nargs='+')
+    parser.add_argument('--run_mode', type=str, default='train')
+    parser.add_argument('--model_type', type=str, default='unet')
+    parser.add_argument('--recipe', type=str, default='rec')
+    parser.add_argument('--loss_type', type=str, nargs='+', default=['l2'])
     args = parser.parse_args()
 
     run_mode = args.run_mode
     model_type = args.model_type
     recipe = args.recipe                            # list
-    other = args.other
+    loss_type = args.loss_type
     assert run_mode in ['train', 'predict', 'validate', 'statistics']
     assert model_type in ['unet', 'zcae', None]
     assert recipe in ['rec',  'rot', 'mask', 'res', 'canny', None]
-    if other != None:
-        if type(other) == str:
-            assert other in ['change_loss']
-        elif type(recipe) == list:
-            for x in other:
-                assert x in ['change_loss']        
-    else: other = []
 
     # 一个af对应一个algo，若使用多个algo则用多个af创造。
     af = AlgoFactory()
-    algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe, other=other)
+    algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe,  loss_type=loss_type)
     # algo.run(algo, return_rec=True, num=5)
+    # algo.run(algo, return_sample_score=True)
     algo.run(algo)
 
 

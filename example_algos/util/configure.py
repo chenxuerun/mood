@@ -4,11 +4,11 @@ import sys
 from .constant import *
 
 
-TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_train'
-TEST_DATASET_NAME = 'validate'
+TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_toy'
+TEST_DATASET_NAME = 'brain_toy'
 TEST_DATASET_DIR = os.path.join('/home/cxr/Program_Datas/mood', TEST_DATASET_NAME)
 # TEST_DATASET_DIR = '/home/cxr/toy'
-LOAD_MODEL_NAME = 'unet_canny'
+LOAD_MODEL_NAME = 'unet_rec'
 
 # keywords
 BASIC_KWS = {
@@ -17,15 +17,18 @@ BASIC_KWS = {
     'train_data_dir': os.path.join(TRAIN_DATASET_DIR, 'preprocessed'),
     'test_dir': TEST_DATASET_DIR,
 
-    'load': False,
+    'load': True,
     'load_path': os.path.join(TRAIN_DATASET_DIR, 'log', LOAD_MODEL_NAME, 'checkpoint'),
+    'load_file_name': '4',
     'name': LOAD_MODEL_NAME,
+
+    'print_every_iter': 100,
+    'save_per_epoch': 5,
+    'n_epochs': 20,
 }
 
 # 只包含了公共的参数，不同recipe对应的参数要手动添加
 TRAIN_KWS = {
-    'print_every_iter': 100,
-    'n_epochs': 20,
     'lr': 1e-4,
     'batch_size': 16,
     'origin_size': 256,
@@ -40,8 +43,6 @@ OTHER_KWS = {
 
     'res_size': 32,
     'minus_low': False,
-
-    'loss_type': '7loss',
 
     'canny_th': (0.35, 0.5),
     'canny_binary': False,

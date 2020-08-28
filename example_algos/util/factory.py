@@ -15,7 +15,7 @@ class AlgoFactory:
     def __init__(self):
         self.FF = FuncFactory()
 
-    def getAlgo(self, run_mode, model_type=None, recipe=None, other=[], singleton=True, **kwargs):
+    def getAlgo(self, run_mode, model_type=None, recipe=None, loss_type='l2', singleton=True, **kwargs):
         self.FF.singleton = singleton
 
         # 创建基本的algo
@@ -41,16 +41,17 @@ class AlgoFactory:
             train_kws = TRAIN_KWS
 
             assert recipe is not None, '未指定recipe'
-            self.FF.getFunction('modify_train_kws', OTHER_KWS, recipe, *other)(train_kws)
+            self.FF.getFunction('modify_train_kws', OTHER_KWS, recipe)(train_kws)
 
             assert model_type is not None, '未指定model_type'
             train_kws['recipe'] = recipe
             train_kws['model_type'] = model_type
+            train_kws['loss_type'] = loss_type
             need_to_save_config = True
 
         else:
             train_kws = AlgoFactory.load_config(os.path.join(basic_kws['load_path'], '../config/train_kws.json'))            # 读取训练配置
-            model_type = train_kws['model_type']
+            loss_type = train_kws['loss_type']
             if run_mode == 'train':
                 need_to_save_config = True
             else:
@@ -76,16 +77,18 @@ class AlgoFactory:
         self.FF.getFunction('modify_model_kws', train_kws)(model_kws)
         model = AlgoFactory.getModel(model_type=model_type, model_kws=model_kws).cuda()
         optimizer = torch.optim.Adam(model.parameters(), lr=train_kws['lr'])
-
-        if basic_kws['load']:
-            model_path = os.path.join(basic_kws['load_path'], 'model.pth')
-            if not os.path.exists(model_path):
-                raise FileNotFoundError(f'文件{model_path}不存在')
-            PytorchExperimentLogger.load_model_static(model, model_path)
-            time.sleep(2)
-
         algo.__setattr__('model', model)
         algo.__setattr__('optimizer', optimizer)
+
+        if basic_kws['load']:
+            model_path = os.path.join(basic_kws['load_path'], basic_kws['load_file_name'])
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f'文件{model_path}不存在')
+            algo.load_model(model_path)
+            # PytorchExperimentLogger.load_model_static(model, model_path)
+            time.sleep(2)
+        else:
+            algo.total_epoch = 0
 
         # 为algo设置函数
         dataset_functions, algo_functions = self.getFunctions(train_kws)
