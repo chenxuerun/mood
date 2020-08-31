@@ -24,8 +24,8 @@ BASIC_KWS = {
     'name': LOAD_MODEL_NAME,
 
     'print_every_iter': 100,
-    'save_per_epoch': 5,
-    'n_epochs': 20,
+    # 'save_per_epoch': 1,
+    'n_epochs': 25,
 }
 
 # 只包含了公共的参数，不同recipe对应的参数要手动添加
