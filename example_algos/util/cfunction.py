@@ -33,10 +33,6 @@ class FuncFactory:
             def modify_train_kws_fn(train_kws):
                 train_kws['res_size'] = kws['res_size']
                 train_kws['minus_low'] = kws['minus_low']
-        elif recipe == 'canny':
-            def modify_train_kws_fn(train_kws):
-                train_kws['canny_th'] = kws['canny_th']
-                train_kws['canny_binary'] = kws['canny_binary']
         else:
             def modify_train_kws_fn(train_kws): pass
 
@@ -52,6 +48,9 @@ class FuncFactory:
         if recipe == 'predict':
             def modify_model_kws_fn(model_kws):
                 model_kws['in_channels'] = train_kws['see_slice']
+        elif recipe == 'canny':
+            def modify_model_kws_fn(model_kws):
+                model_kws['in_channels'] = 2
         else:
             def modify_model_kws_fn(model_kws):
                 model_kws['in_channels'] = 1
@@ -129,38 +128,41 @@ class FuncFactory:
         return get_slice_data
 
 
-    # def create_transforms_fn(self, train_kws):
-    #     from monai.transforms import Resize, Compose, ToTensor
-    #     func_list = []
-    #     common_resize = Resize((train_kws['target_size'], train_kws['target_size']))
+    def create_transforms_fn(self, train_kws):
+        from monai.transforms import Resize, Compose, ToTensor
+        func_list = []
+        common_resize = Resize((train_kws['target_size'], train_kws['target_size']))
 
-    #     if 'resolution' in train_kws.keys():
-    #         func_list.append(
-    #             Resize((train_kws['resolution'], train_kws['resolution']))
-    #         )
-    #     func_list.append(common_resize)
-    #     func_list.append(ToTensor())
-    #     return Compose(func_list)
+        # if 'resolution' in train_kws.keys():
+        #     func_list.append(
+        #         Resize((train_kws['resolution'], train_kws['resolution']))
+        #     )
+        func_list.append(common_resize)
+        func_list.append(ToTensor())
+        return Compose(func_list)
 
 
-    # def create_to_transforms_fn(self, train_kws):
-    #     func_list = []
+    def create_to_transforms_fn(self, train_kws):
+        # func_list = []
 
-    #     if 'resolution' in train_kws.keys():
-    #         func_list.append(
-    #             torch.nn.Upsample((train_kws['resolution'], train_kws['resolution']), mode="bilinear")
-    #         )
+        # if 'resolution' in train_kws.keys():
+        #     func_list.append(
+        #         torch.nn.Upsample((train_kws['resolution'], train_kws['resolution']), mode="bilinear")
+        #     )
             
-    #     func_list.append(
-    #         torch.nn.Upsample((train_kws['target_size'], train_kws['target_size']), mode="bilinear")
-    #     )
+        # func_list.append(
+        #     torch.nn.Upsample((train_kws['target_size'], train_kws['target_size']), mode="bilinear")
+        # )
         
-    #     def to_transforms(data):
-    #         for func in func_list:
-    #             data = func(data)
-    #         return data
+        # def to_transforms(data):
+        #     for func in func_list:
+        #         data = func(data)
+        #     return data
 
-    #     return to_transforms
+        from monai.transforms import Resize
+        to_transforms = Resize((train_kws['target_size'], train_kws['target_size']), mode='bilinear')
+
+        return to_transforms
 
 
     def create_calculate_loss_fn(self, train_kws):
@@ -240,6 +242,7 @@ class FuncFactory:
                     ce_tensor = get_square_mask(data.shape, square_size=train_kws['mask_square_size'], 
                         n_squares=1, noise_val=(torch.min(data).item(), torch.max(data).item()), data=data)
                     ce_tensor = torch.from_numpy(ce_tensor).float().cuda()
+                    ce_tensor[data == 0] = 0
                     input_noisy = torch.where(ce_tensor != 0, ce_tensor, data)
                     input = input_noisy
                 else:
@@ -263,40 +266,50 @@ class FuncFactory:
 
         elif recipe == 'res': # 与低分辨率相减
             to_transform = torch.nn.Upsample((train_kws['res_size'], train_kws['res_size']), mode="bilinear")
-            from_transform = torch.nn.Upsample((train_kws['origin_size'], train_kws['origin_size']), mode="bilinear")
             if train_kws['minus_low']:
                 def get_input_label(data):
+                    origin_size = data.shape[-1]
+                    from_transfrom = torch.nn.Upsample((origin_size, origin_size), mode='bilinear')
                     label = from_transform(to_transform(data))
                     input = label
                     return input, label
             else: # 与高分辨率相减
                 def get_input_label(data):
+                    origin_size = data.shape[-1]
+                    from_transfrom = torch.nn.Upsample((origin_size, origin_size), mode='bilinear')
                     label = data
                     input = from_transform(to_transform(data))
                     return input, label
 
         elif recipe == 'canny':
-            from .function import cv2_canny
-            low = train_kws['canny_th'][0]
-            high = train_kws['canny_th'][1]
+            from .function import cv2_canny_img, array_to_img, img_to_array
 
-            if train_kws['canny_binary']:
-                def get_input(input, data):
-                    return input
-            else:
-                def get_input(input, data):
-                    return torch.where(input == 0, input, data)
+            if train_kws['dataset'] == 'brain':
+                low = 0.35
+                high = 0.5
+                preprocess = lambda x: x
+            elif train_kws['dataset'] == 'abdom':
+                from cv2 import blur
+                low = 0.05
+                high = 0.1
+                kernel_size = 7
+                preprocess = lambda x: blur(x, (kernel_size, kernel_size))
 
             def get_input_label(data):
                 label = data
-                data = data.cpu().numpy()
+                np_array = data.cpu().numpy()
                 data_slices = []
-                for data_slice in data:
+                for data_slice in np_array:
                     data_slice = np.squeeze(data_slice)
-                    data_slice = np.expand_dims(cv2_canny(data_slice, low, high), axis=0)
+                    img = array_to_img(data_slice)
+                    img = preprocess(img)
+                    img = cv2_canny_img(img, low, high)
+                    data_slice = img_to_array(img)
+                    data_slice = np.expand_dims(data_slice, axis=0)
                     data_slices.append(data_slice)
-                input = torch.from_numpy(np.array(data_slices)).cuda()
-                input = get_input(input, label)
+                canny = torch.from_numpy(np.array(data_slices)).cuda()
+                masked = torch.where(canny == 0, canny, data)
+                input = torch.cat([canny, masked], dim=1)
                 return input, label
 
         else:
@@ -341,89 +354,13 @@ class FuncFactory:
 
     # data_tensor 是整个文件的数据 (d,d,d)
     def create_get_pixel_score_fn(self, train_kws):
-        # recipe = train_kws['recipe']
-
-        # if recipe == 'predict':
-        #     see_slice = train_kws['see_slice']
-        #     def get_pixel_score(model, data_tensor):
-        #         rec_tensor = torch.zeros_like(data_tensor)                                                                                                 # (l, f, f)
-        #         loss_tensor = torch.zeros_like(data_tensor)
-        #         with torch.no_grad():
-        #             for i in range(data_tensor.shape[0] - see_slice):
-        #                 input = data_tensor[i: i + see_slice, :, :].unsqueeze(0)                                              # (1, x, f, f)
-        #                 out = model(input)                                                                                                                                          # (1, 1, f, f)
-        #                 label = data_tensor[[i + see_slice], :, :].unsqueeze(0)
-        #                 loss = torch.pow(out - label, 2)
-
-        #                 rec_tensor[[i + see_slice]] = out[0]
-        #                 loss_tensor[[i + see_slice]] = loss[0]
-        #         return loss_tensor, rec_tensor
-
-        # elif recipe == 'rotate':
-        #     from math import ceil
-        #     batch_size = train_kws['batch_size']
-        #     def get_pixel_score(model, data_tensor):
-        #         rec_tensor = torch.zeros_like(data_tensor)                                                                                                 # (l, f, f)
-        #         loss_tensor = torch.zeros_like(data_tensor)
-        #         with torch.no_grad():
-        #             for i in range(ceil(data_tensor.shape[0] / batch_size)):
-        #                 label = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)                                   # (1, 1, f, f)
-        #                 input = torch.rot90(label, 1, [2, 3])
-        #                 rec = model(input)
-        #                 loss = torch.pow(label - rec, 2)
-
-        #                 rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :]                                                     # (1, f, f)
-        #                 loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
-        #         return loss_tensor, rec_tensor
-
-        # elif recipe == 'split_rotate':
-        #     from math import ceil
-        #     batch_size = train_kws['batch_size']
-        #     def get_pixel_score(model, data_tensor):
-        #         rec_tensor = torch.zeros_like(data_tensor)                                                                                                 # (l, f, f)
-        #         loss_tensor = torch.zeros_like(data_tensor)
-        #         with torch.no_grad():
-        #             for i in range(ceil(data_tensor.shape[0] / batch_size)):
-        #                 label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 data = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 a, b = data.chunk(2, 2)
-        #                 a1, a2 = a.chunk(2, 3)
-        #                 b1, b2 = b.chunk(2, 3)
-        #                 out = []
-        #                 for item in list([a1, a2, b1, b2]):
-        #                     input = torch.rot90(item, 1, [2, 3])
-        #                     rec_split = model(input)
-        #                     out.append(rec_split)
-
-        #                 a_out = torch.cat((out[0], out[1]), 3)
-        #                 b_out = torch.cat((out[2], out[3]), 3)
-        #                 rec = torch.cat((a_out, b_out), 2)
-        #                 loss = torch.pow(label - rec, 2)
-                        
-        #                 rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :]
-        #                 loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
-        #         return loss_tensor, rec_tensor
-
-        # else:
-        #     from math import ceil
-        #     batch_size = train_kws['batch_size']
-        #     def get_pixel_score(model, data_tensor):
-        #         rec_tensor = torch.zeros_like(data_tensor)                               # (l, f, f)
-        #         loss_tensor = torch.zeros_like(data_tensor)
-        #         with torch.no_grad():
-        #             for i in range(ceil(data_tensor.shape[0] / batch_size)):
-        #                 label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)                     # (1, 1, f, f)
-        #                 input = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 rec = model(input)
-        #                 loss = torch.pow(input - rec, 2)
-
-        #                 rec_tensor[i * batch_size: (i+1) * batch_size] = rec[:, 0, :, :]
-        #                 loss_tensor[i * batch_size: (i+1) * batch_size] = loss[:, 0, :, :]
-        #         return loss_tensor, rec_tensor
-
         from math import ceil
         batch_size = train_kws['batch_size']
-        get_input_label = self.getFunction('get_input_label', train_kws)
+
+        if train_kws['recipe'] == 'mask':
+            get_input_label = self.create_get_input_label_fn({'recipe': 'rec'})
+        else:
+            get_input_label = self.getFunction('get_input_label', train_kws)
 
         def get_pixel_score(model, data_tensor, return_score=True, return_rec=False, return_input=False, return_sample_score=True):
             if return_score: score_tensor = torch.zeros_like(data_tensor)
@@ -458,76 +395,6 @@ class FuncFactory:
 
     # data_tensor 是整个文件的数据
     def create_get_sample_score_fn(self, train_kws):
-        # recipe = train_kws['recipe']
-
-        # if recipe == 'predict':
-        #     see_slice = train_kws['see_slice']
-        #     def get_sample_score(model, data_tensor):
-        #         slice_scores = []
-        #         with torch.no_grad():
-        #             for i in range(data_tensor.shape[0] - see_slice):
-        #                 label = label_tensor[[i+see_slice]].unsqueeze(0)
-        #                 input = data_tensor[i: i+see_slice].unsqueeze(0)
-        #                 out = model(input)
-        #                 loss = torch.mean(torch.pow(out - label, 2), dim=(1, 2, 3))
-        #                 slice_scores.append(loss.item())
-        #         return np.max(slice_scores)
-
-        # elif recipe == 'rotate':
-        #     from math import ceil
-        #     batch_size = train_kws['batch_size']
-        #     def get_sample_score(model, data_tensor):
-        #         slice_scores = []
-        #         with torch.no_grad():
-        #             for i in range(ceil(data_tensor.shape[0] / batch_size)):
-        #                 label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 data = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 input = torch.rot90(data, 1, [2, 3])
-        #                 rec = model(input)
-        #                 loss = torch.mean(torch.pow(label - rec, 2), dim=(1, 2, 3))
-        #                 slice_scores += loss.cpu().tolist()
-        #         return np.max(slice_scores)
-
-        # elif recipe == 'split_rotate':
-        #     from math import ceil
-        #     batch_size = train_kws['batch_size']
-        #     def get_sample_score(model, data_tensor):
-        #         slice_scores = []
-        #         with torch.no_grad():
-        #             for i in range(ceil(data_tensor.shape[0] / batch_size)):
-        #                 label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 data = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 a, b = data.chunk(2, 2)
-        #                 a1, a2 = a.chunk(2, 3)
-        #                 b1, b2 = b.chunk(2, 3)
-        #                 out = []
-        #                 for item in list([a1, a2, b1, b2]):
-        #                     input = torch.rot90(item, 1, [2, 3])
-        #                     rec_split = model(input)
-        #                     out.append(rec_split)
-
-        #                 a_out = torch.cat((out[0], out[1]), 3)
-        #                 b_out = torch.cat((out[2], out[3]), 3)
-        #                 rec = torch.cat((a_out, b_out), 2)
-        #                 loss = torch.mean(torch.pow(label - rec, 2), dim=(1, 2, 3))
-
-        #                 slice_scores += loss.cpu().tolist()
-        #         return np.max(slice_scores)
-                
-        # else:
-        #     from math import ceil
-        #     batch_size = train_kws['batch_size']
-        #     def get_sample_score(model, data_tensor):
-        #         slice_scores = []
-        #         with torch.no_grad():
-        #             for i in range(ceil(data_tensor.shape[0] / batch_size)):
-        #                 label = label_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 input = data_tensor[i * batch_size: (i+1) * batch_size].unsqueeze(1)
-        #                 rec = model(input)
-        #                 loss = torch.mean(torch.pow(label - rec, 2), dim=(1, 2, 3))
-        #                 slice_scores += loss.cpu().tolist()
-        #         return np.max(slice_scores)
-
         from math import ceil
         batch_size = train_kws['batch_size']
         get_input_label = self.getFunction('get_input_label', train_kws)

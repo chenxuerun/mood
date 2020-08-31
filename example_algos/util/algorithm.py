@@ -21,8 +21,6 @@ class Algorithm:
         self.tx = PytorchExperimentStub(name=self.name, base_dir=self.log_dir, config=None, loggers=log_dict,)
 
     def train(self):
-        print('train')
-
         n_items = None
         train_loader = get_numpy2d_dataset(
             base_dir=self.train_data_dir,
@@ -31,18 +29,18 @@ class Algorithm:
             batch_size=self.batch_size,
             mode="all",
             # target_size=self.target_size,
-            drop_last=True,
+            drop_last=False,
             n_items=n_items,
             functions_dict=self.dataset_functions,
         )
         # val_loader = get_numpy2d_dataset(
-        #     base_dir=self.train_data_dir,
+        #     base_dir=self.test_data_dir,
         #     num_processes=self.batch_size // 2,
         #     pin_memory=True,
         #     batch_size=self.batch_size,
-        #     mode="val",
+        #     mode="all",
         #     # target_size=self.target_size,
-        #     drop_last=True,
+        #     drop_last=False,
         #     n_items=n_items,
         #     functions_dict=self.dataset_functions,
         # )
@@ -50,6 +48,7 @@ class Algorithm:
         # val_loader = DataPreFetcher(val_loader)
 
         for epoch in range(self.n_epochs):
+            print('train')
             self.model.train()
             train_loss = 0
 
@@ -72,16 +71,16 @@ class Algorithm:
                     # tensorboard记录
                     self.tx.add_result(loss.item(), name="Train-Loss", tag="Losses", counter=cnt)
 
-                    if self.logger is not None:
-                        self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
-                        self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
+                    # if self.logger is not None:
+                    #     self.tx.l[0].show_image_grid(input, name="Input", image_args={"normalize": True})
+                    #     self.tx.l[0].show_image_grid(out, name="Reconstruction", image_args={"normalize": True})
 
             print(f"====> Epoch: {epoch + 1} Average loss: {train_loss / len(train_loader):.6f}")
 
-            # validate
+            # print('validate')
             # self.model.eval()
-
             # val_loss = 0
+
             # data_loader_ = tqdm(enumerate(val_loader))
             # data_loader_.set_description_str("Validating")
             # for _, data in data_loader_:
@@ -92,27 +91,42 @@ class Algorithm:
             #     val_loss / len(val_loader), name="Val-Loss", tag="Losses", counter=(epoch + 1) * len(train_loader))
             # print(f"====> Epoch: {epoch + 1} Validation loss: {val_loss / len(val_loader):.6f}")
 
-            if (epoch + 1) % self.save_per_epoch == 0:
-                self.save_model(epoch)
+            # if (epoch + 1) % self.save_per_epoch == 0:
+            if (epoch + 1) > self.n_epochs - 5:
+                self.save_model(epoch + 1)
 
         time.sleep(2)
 
 
     def save_model(self, new_training_epoch):
-        save_epoch = self.total_epoch + new_training_epoch + 1
+        save_epoch = self.total_epoch + new_training_epoch
         path = os.path.join(self.tx.elog.work_dir, 'checkpoint', f'{save_epoch}')
         save_dict = {
             'model': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'total_epoch': save_epoch,
+            # 'score': score,
+            # 'best_score': self.best_score,
         }
         torch.save(save_dict, path)
+
+        # if score > best_score:
+        #     self.best_score = score
+        #     save_dict['best_score'] = score
+        #     best_path = os.path.join(self.tx.elog.work_dir, 'checkpoint', 'best')
+        #     torch.save(save_dict, best_path)
+
+        #     log_path = os.path.join(self.tx.elog.work_dir, 'checkpoint', 'best_score_epoch.txt')
+        #     with open(log_path, 'w') as target_file:
+        #         target_file.write(f'{str(save_epoch)}')
+        
 
     def load_model(self, path):
         load_dict = torch.load(path)
         self.model.load_state_dict(load_dict['model'])
         self.optimizer.load_state_dict(load_dict['optimizer'])
         self.total_epoch = load_dict['total_epoch']
+        # self.best_score = load_dict['best_score']
 
 
     def train_model(self, data):
@@ -126,11 +140,11 @@ class Algorithm:
         return loss, input, out
 
 
-    # def eval_model(self, data):
-    #     with torch.no_grad():
-    #         input, label = self.get_input_label(data)
-    #         loss, _ = self.calculate_loss(self.model, input, label)
-    #     return loss
+    def eval_model(self, data):
+        with torch.no_grad():
+            input, label = self.get_input_label(data)
+            loss, _ = self.calculate_loss(self.model, input, label)
+        return loss
 
 
     def predict(self, **kwargs):
@@ -261,7 +275,14 @@ class Algorithm:
 
 
     def score_pixel_2d(self, np_array, **kwargs):
+        from monai.transforms import Resize
+
+        origin_size = np_array.shape[-1]
+        from_transforms = Resize((origin_size, origin_size), mode='bilinear')
+        to_transforms = self.to_transforms
+
         np_array = self.transpose(np_array)
+        np_array = to_transforms(np_array)
         data_tensor = torch.from_numpy(np_array).float().cuda()
 
         result  = self.get_pixel_score(self.model, data_tensor, **kwargs)
@@ -270,6 +291,7 @@ class Algorithm:
             if key == 'sp': continue
             tensor = result[key]
             array = tensor.detach().cpu().numpy()
+            array = from_transforms(array)
             array = self.revert_transpose(array)
             result[key] = array
 

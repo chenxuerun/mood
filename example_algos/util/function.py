@@ -41,30 +41,60 @@ def cv2_canny(np_array, low, high):
     np_array = temp.astype(np.float32) / 256
     return np_array
 
+def cv2_canny_img(img, low, high):
+    from cv2 import Canny
+    low = int(low * 256)
+    high = int(high * 256)
+    img = Canny(img, low, high)
+    return img
+
+def array_to_img(np_array):
+    temp = np_array * 256
+    img = temp.astype(np.uint8)
+    return img
+
+def img_to_array(img):
+    temp = img.astype(np.float32)
+    array = temp / 256
+    return array
 
 def canny_ex():
-    from cv2 import imwrite
+    from cv2 import imwrite, medianBlur, blur
     save_path = '/home/cxr/Downloads'
     # path = '/home/cxr/Program_Datas/mood/validate/data/c4_00020_0_1.nii.gz'
     # path = '/home/cxr/Program_Datas/mood/brain_toy/data/toy_1.nii.gz'
-    path = '/home/cxr/Program_Datas/mood/validate/data/n2_00002_flair_13.nii.gz'
+    # path = '/home/cxr/Program_Datas/mood/validate/data/n2_00002_flair_13.nii.gz'
+    path = '/home/cxr/Program_Datas/mood/validate_abdom/data/n13_00313_2.nii.gz'
     np_array, np_aff = ni_load(path)
-    np_array = np_array[175]
-
+    np_array = np_array[:,256,:]
+    
     path = os.path.join(save_path, 'origin.png')
-    img = (np_array * 256).astype(np.uint8)
-    imwrite(path, img)
+    origin_img = (np_array * 256).astype(np.uint8)
+    imwrite(path, origin_img)
+
+    kernel = 7
+    smooth_img = blur(origin_img, (kernel, kernel))
+    # img = medianBlur(img, 20)
+    path = os.path.join(save_path, 'smooth.png')
+    imwrite(path, smooth_img)
 
     highs = np.arange(0, 1, step=0.05)
-    lows = np.arange(0, 1, step=0.05) 
+    lows = np.arange(0, 1, step=0.05)
     for low in lows:
         for high in highs:
             if high <= low: continue
             file_name = f'{low:.2f}-{high:.2f}.png'
             path = os.path.join(save_path, file_name)
-            img = cv2_canny(np_array, low, high)
-            img = (img * 256).astype(np.uint8)
-            imwrite(path, img)
+            # array = cv2_canny(np_array, low, high)
+            canny_img = cv2_canny_img(smooth_img, low, high)
+
+            # img = (img * 256).astype(np.uint8)
+            imwrite(path, canny_img)
+
+            path = os.path.join(save_path, 'a'+ file_name)
+            new_new_img = np.copy(origin_img)
+            new_new_img[canny_img == 0] = 0
+            imwrite(path, new_new_img)
 
 
 def save_images(pred_dir, f_name, ni_aff, result):

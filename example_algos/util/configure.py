@@ -5,10 +5,10 @@ from .constant import *
 
 
 TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_toy'
-TEST_DATASET_NAME = 'brain_toy'
+TEST_DATASET_NAME = 'validate'
 TEST_DATASET_DIR = os.path.join('/home/cxr/Program_Datas/mood', TEST_DATASET_NAME)
 # TEST_DATASET_DIR = '/home/cxr/toy'
-LOAD_MODEL_NAME = 'unet_rec'
+LOAD_MODEL_NAME = 'unet_mask'
 
 # keywords
 BASIC_KWS = {
@@ -16,10 +16,11 @@ BASIC_KWS = {
     'log_dir': os.path.join(TRAIN_DATASET_DIR, 'log'),
     'train_data_dir': os.path.join(TRAIN_DATASET_DIR, 'preprocessed'),
     'test_dir': TEST_DATASET_DIR,
+    # 'test_data_dir': os.path.join(TEST_DATASET_DIR, 'preprocessed'),
 
-    'load': True,
+    'load': False,
     'load_path': os.path.join(TRAIN_DATASET_DIR, 'log', LOAD_MODEL_NAME, 'checkpoint'),
-    'load_file_name': '4',
+    'load_file_name': '20',
     'name': LOAD_MODEL_NAME,
 
     'print_every_iter': 100,
@@ -30,8 +31,9 @@ BASIC_KWS = {
 # 只包含了公共的参数，不同recipe对应的参数要手动添加
 TRAIN_KWS = {
     'lr': 1e-4,
+    'dataset': 'abdom',
     'batch_size': 16,
-    'origin_size': 256,
+    'target_size': 128,
     'select_dim': 0,
 }
 
@@ -43,9 +45,6 @@ OTHER_KWS = {
 
     'res_size': 32,
     'minus_low': False,
-
-    'canny_th': (0.35, 0.5),
-    'canny_binary': False,
 }
 
 CONFIGURE_DICT = {

@@ -10,9 +10,9 @@ from example_algos.util.factory import AlgoFactory
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_mode', type=str, default='train')
+    parser.add_argument('--run_mode', type=str, default='predict')
     parser.add_argument('--model_type', type=str, default='unet')
-    parser.add_argument('--recipe', type=str, default='rec')
+    parser.add_argument('--recipe', type=str, default='mask')
     parser.add_argument('--loss_type', type=str, nargs='+', default=['l2'])
     args = parser.parse_args()
 
@@ -27,9 +27,9 @@ def main():
     # 一个af对应一个algo，若使用多个algo则用多个af创造。
     af = AlgoFactory()
     algo = af.getAlgo(run_mode=run_mode, model_type=model_type, recipe=recipe,  loss_type=loss_type)
-    # algo.run(algo, return_rec=True, num=5)
-    # algo.run(algo, return_sample_score=True)
-    algo.run(algo)
+    # algo.run(algo, return_rec=True, return_input=True, return_sample_score=True)
+    algo.run(algo, return_rec=True, return_input=True, return_sample_score=True, num=5)
+    # algo.run(algo)
 
 
 def auto_predict():

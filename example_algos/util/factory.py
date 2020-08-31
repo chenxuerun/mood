@@ -3,7 +3,10 @@ import os
 import json
 
 import torch
-torch.cuda.set_device(1)
+
+device = 0
+torch.cuda.set_device(device)
+print(f'device: {device}')
 
 from trixi.logger import PytorchExperimentLogger
 
@@ -89,6 +92,7 @@ class AlgoFactory:
             time.sleep(2)
         else:
             algo.total_epoch = 0
+            # algo.best_score = 0
 
         # 为algo设置函数
         dataset_functions, algo_functions = self.getFunctions(train_kws)
@@ -130,7 +134,7 @@ class AlgoFactory:
             'get_data_slice_num': None,
             'get_slices': None,
             'get_slice_data': None,
-            # 'transforms': None,
+            'transforms': None,
         }
         algo_functions = {
             'calculate_loss': None,
@@ -139,7 +143,7 @@ class AlgoFactory:
             'revert_transpose': None,
             'get_pixel_score': None,
             'get_sample_score': None,
-            # 'to_transforms': None,
+            'to_transforms': None,
         }
         
         for fn_name in dataset_functions.keys():

@@ -213,7 +213,7 @@ class Numpy2dDataSet(Dataset):
             base_dir, mode=mode, pattern=file_pattern, slice_offset=slice_offset, caching=caching
         )
         # self.transforms = transforms
-        self.transforms = ToTensor()
+        # self.transforms = ToTensor()
 
         self.data_len = len(self.items)
 
