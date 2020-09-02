@@ -53,6 +53,7 @@ class Algorithm:
             train_loss = 0
 
             data_loader_ = tqdm(enumerate(train_loader))
+            # data_loader_ = enumerate(train_loader)
             for batch_idx, data in data_loader_:
                 # data = data.cuda()
                 loss, input, out = self.train_model(data)
@@ -278,7 +279,7 @@ class Algorithm:
         from monai.transforms import Resize
 
         origin_size = np_array.shape[-1]
-        from_transforms = Resize((origin_size, origin_size), mode='bilinear')
+        from_transforms = Resize((origin_size, origin_size))
         to_transforms = self.to_transforms
 
         np_array = self.transpose(np_array)

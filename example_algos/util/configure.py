@@ -4,11 +4,11 @@ import sys
 from .constant import *
 
 
-TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/brain_toy'
-TEST_DATASET_NAME = 'validate'
+TRAIN_DATASET_DIR = '/home/cxr/Program_Datas/mood/abdom_train'
+TEST_DATASET_NAME = 'validate_abdom'
 TEST_DATASET_DIR = os.path.join('/home/cxr/Program_Datas/mood', TEST_DATASET_NAME)
 # TEST_DATASET_DIR = '/home/cxr/toy'
-LOAD_MODEL_NAME = 'unet_mask'
+LOAD_MODEL_NAME = 'unet_raaaaaa'
 
 # keywords
 BASIC_KWS = {
@@ -34,7 +34,7 @@ TRAIN_KWS = {
     'dataset': 'abdom',
     'batch_size': 16,
     'target_size': 128,
-    'select_dim': 0,
+    'select_dim': 1,
 }
 
 OTHER_KWS = {

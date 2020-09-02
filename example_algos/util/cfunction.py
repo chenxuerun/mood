@@ -160,7 +160,7 @@ class FuncFactory:
         #     return data
 
         from monai.transforms import Resize
-        to_transforms = Resize((train_kws['target_size'], train_kws['target_size']), mode='bilinear')
+        to_transforms = Resize((train_kws['target_size'], train_kws['target_size']))
 
         return to_transforms
 
